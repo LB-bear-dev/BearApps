@@ -9,6 +9,6 @@
 #include <ppl.h>
 #include <concurrent_unordered_map.h>
 
-#undef GetMessage()
+#undef GetMessage
 
 using json = nlohmann::json;

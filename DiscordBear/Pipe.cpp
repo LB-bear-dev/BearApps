@@ -82,9 +82,11 @@ namespace DiscordBear
 			return false;
 		}
 
-		LOG(LogSeverity::Verbose) << "Attempting to write message " 
+		LOG(LogSeverity::Verbose) << "Attempting to write message "
 #if defined(_DEBUG)
 			<< message.GetMessage();
+#else
+			;
 #endif
 
 		DWORD cbWrite = 0;
@@ -178,6 +180,8 @@ namespace DiscordBear
 			LOG(LogSeverity::Verbose) << "Read message from pipe " 
 #if defined(_DEBUG)
 				<< message.GetMessage();
+#else
+				;
 #endif
 		}
 

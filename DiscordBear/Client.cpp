@@ -5,6 +5,8 @@
 #include "Message.h"
 #include "Register.h"
 
+#pragma optimize("", off)
+
 using namespace DiscordBear;
 
 DiscordBear::Client::Client(const std::string& appID, const std::string& appSecret) : m_appID(appID), m_appSecret(appSecret), m_asyncUpdateTask([]() {}) {}
@@ -258,7 +260,7 @@ void DiscordBear::Client::SubscribeOnVoiceChannelSpeak(
 	std::function<void(SpeakingEventInfo&&)> speakingEndEvent)
 {
 	{
-		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelJoinEventCreateLock);
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_speakingEventCreateLock);
 		if (!m_speakingEventChannelIDList.empty())
 		{
 			LOG(LogSeverity::Severe) << "Already subscribed to Voice channel speaking event, unsubscribe and resubscribe to change which channels you want to subscribe to.";
@@ -294,7 +296,7 @@ void DiscordBear::Client::SubscribeOnVoiceChannelSpeak(
 					{"evt", "SPEAKING_STOP"},
 					{"args",
 					{
-						{"channel_id", channelID
+						{"channel_id", channelID}
 					}}
 				}.dump())))
 		{
@@ -303,7 +305,7 @@ void DiscordBear::Client::SubscribeOnVoiceChannelSpeak(
 		}
 	}
 
-	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelJoinEventCreateLock);
+	concurrency::reader_writer_lock::scoped_lock lock(m_speakingEventCreateLock);
 	m_speakingEventChannelIDList = channelIDList;
 	m_speakingStartEvent = speakingStartEvent;
 	m_speakingEndEvent = speakingEndEvent;
