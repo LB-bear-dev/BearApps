@@ -2,6 +2,13 @@
 #include <nlohmann/json.hpp>
 namespace CharacterControlCore
 {
+	class ImageResource;
+	class ImageResources;
+	void to_json(json& attributesJson, const ImageResource& attributes);
+	void from_json(const json& attributesJson, ImageResource& attributes);
+	void to_json(json& attributesJson, const ImageResources& attributes);
+	void from_json(const json& attributesJson, ImageResources& attributes);
+
 	class ImageResource
 	{
 	public:

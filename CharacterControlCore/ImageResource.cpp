@@ -1,6 +1,5 @@
 #include "PCH.h"
 #include "ImageResource.h"
-#pragma optimize("", off)
 
 void CharacterControlCore::to_json(json& resourceJson, const ImageResource& resource)
 {
