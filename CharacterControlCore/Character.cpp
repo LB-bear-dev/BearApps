@@ -8,6 +8,7 @@ namespace
 void CharacterControlCore::Character::Update()
 {
 	m_characterJson.Update();
+	m_visualLayerRoot.Update(m_attributes);
 }
 
 CharacterControlCore::Character::Character(std::filesystem::path filename):

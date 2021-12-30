@@ -96,7 +96,7 @@ namespace
 	}
 }
 
-bool CharacterControlCore::Condition::Evaluate(const Attributes& attributes)
+bool CharacterControlCore::Condition::Evaluate(const Attributes& attributes) const
 {
 	bool conditionResult = true;
 	for (auto& condition : m_conditions)

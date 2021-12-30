@@ -1,8 +1,9 @@
 #pragma once
-#include "WatchedJson.h"
 #include "Attributes.h"
-#include "ImageResource.h"
 #include "Condition.h"
+#include "ImageResource.h"
+#include "WatchedJson.h"
+
 namespace CharacterControlCore
 {
 	struct VisualLayerCondition
@@ -11,23 +12,23 @@ namespace CharacterControlCore
 		std::string m_name;
 	};
 
-	class VisualLayerConditions
+	class VisualLayerNameBuilder
 	{
 	public:
-		std::string Get();
+		const std::string& Update(const Attributes& attributes) const;
 	private:
-		std::vector<VisualLayerCondition> m_conditions;
+		std::vector<VisualLayerCondition> m_nameConditions;
 		std::string m_defaultName;
 	};
 
 	class VisualLayer
 	{
 	public:
-		void Update();
-		ImageResource GetCurrentImage();
+		void Update(const Attributes& attributes);
+		const std::string& GetCurrentImageName();
 	private:
 		std::string m_name;
 		std::unordered_map<std::string, VisualLayer> m_childLayers;
-		std::vector<VisualLayerConditions> m_conditionsList;
+		std::vector<VisualLayerNameBuilder> m_namePartBuilders;
 	};
 }

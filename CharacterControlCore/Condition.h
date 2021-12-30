@@ -29,7 +29,7 @@ namespace CharacterControlCore
 	class Condition
 	{
 	public:
-		bool Evaluate(const Attributes& attributes);
+		bool Evaluate(const Attributes& attributes) const;
 
 	private:
 		std::vector<std::unique_ptr<ConditionalBase>> m_conditions;
