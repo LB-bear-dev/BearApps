@@ -9,6 +9,10 @@ namespace CharacterControlCore
 	{
 	public:
 		void Update();
+
+		const Attributes& GetAttributes() const;
+		Attributes& GetAttributesMutable();
+		const VisualLayer& GetVisualLayerRoot()const;
 	private:
 		friend class CharacterCreator;
 		Character(std::filesystem::path filename);

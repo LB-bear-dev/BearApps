@@ -11,6 +11,9 @@ namespace CharacterControlCore
 		void Update();
 
 		Character GetCharacter(std::string id);
+
+		const std::filesystem::path& GetPath();
+
 	private:
 		WatchedJson m_rootFile;
 	};

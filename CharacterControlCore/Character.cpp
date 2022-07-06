@@ -11,6 +11,22 @@ void CharacterControlCore::Character::Update()
 	m_visualLayerRoot.Update(m_attributes);
 }
 
+const CharacterControlCore::Attributes& CharacterControlCore::Character::GetAttributes() const
+{
+	return m_attributes;
+
+}
+
+CharacterControlCore::Attributes& CharacterControlCore::Character::GetAttributesMutable()
+{
+	return m_attributes;
+}
+
+const CharacterControlCore::VisualLayer& CharacterControlCore::Character::GetVisualLayerRoot() const
+{
+	return m_visualLayerRoot;
+}
+
 CharacterControlCore::Character::Character(std::filesystem::path filename):
 	m_characterJson(filename)
 {
@@ -34,7 +50,11 @@ void CharacterControlCore::Character::Parse()
 			m_imageResources = imageResourcesJson->get<ImageResources>();
 		}
 
-
+		auto visualLayersJson = characterJson->find("VisualLayers");
+		if (visualLayersJson != characterJson->end())
+		{
+			m_visualLayerRoot = visualLayersJson->get<VisualLayer>();
+		}
 	}
 }
 

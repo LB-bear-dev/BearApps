@@ -32,7 +32,7 @@ namespace CharacterControlCore
 		bool Evaluate(const Attributes& attributes) const;
 
 	private:
-		std::vector<std::unique_ptr<ConditionalBase>> m_conditions;
+		std::vector<std::shared_ptr<ConditionalBase>> m_conditions;
 
 		friend void to_json(json& j, const Condition& c);
 		friend void from_json(const json& j, Condition& c);

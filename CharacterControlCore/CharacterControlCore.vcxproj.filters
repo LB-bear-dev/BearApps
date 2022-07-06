@@ -63,9 +63,6 @@
     <ClInclude Include="CharacterMap.h">
       <Filter>Header Files\CharacterControl</Filter>
     </ClInclude>
-    <ClInclude Include="Interface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="CharacterCreator.h">
       <Filter>Header Files\Character</Filter>
     </ClInclude>
@@ -100,9 +97,6 @@
     </ClCompile>
     <ClCompile Include="CharacterControl.cpp">
       <Filter>Source Files\CharacterControl</Filter>
-    </ClCompile>
-    <ClCompile Include="Interface.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CharacterCreator.cpp">
       <Filter>Source Files\Character</Filter>

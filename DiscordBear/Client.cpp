@@ -364,6 +364,151 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelSpeak()
 	m_speakingEndEvent = nullptr;
 }
 
+void DiscordBear::Client::SubscribeOnVoiceChannelEnter(
+	const std::vector<ChannelID>& channelIDList,
+	std::function<void(VoiceUserInfo&&)> voiceEnterEvent)
+{
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelEnterEventCreateLock);
+		if (m_voiceChannelEnterEvent != nullptr)
+		{
+			LOG(LogSeverity::Severe) << "Already subscribed to Voice channel enter event, unsubscribe and resubscribe to change which channels you want to subscribe to.";
+			return;
+		}
+	}
+
+	for (auto& channelID : channelIDList)
+	{
+		if (!m_pipe.WriteMessage(
+			Message(Message::Opcode::Frame,
+				json
+				{
+					{"nonce", GenerateNonce()},
+					{"cmd", "SUBSCRIBE"},
+					{"evt", "VOICE_STATE_CREATE"},
+					{"args",
+					{
+						{"channel_id", channelID}
+					}}
+				}.dump())))
+		{
+			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_CREATE message";
+			return;
+		}
+	}
+
+	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelEnterEventCreateLock);
+	m_enterEventChannelIDList = channelIDList;
+	m_voiceChannelEnterEvent = voiceEnterEvent;
+}
+
+void DiscordBear::Client::UnsubscribeOnVoiceChannelEnter()
+{
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelEnterEventCreateLock);
+		if (m_enterEventChannelIDList.empty())
+		{
+			return;
+		}
+	}
+
+	for (auto& channelID : m_enterEventChannelIDList)
+	{
+		if (!m_pipe.WriteMessage(
+			Message(Message::Opcode::Frame,
+				json
+				{
+					{"nonce", GenerateNonce()},
+					{"cmd", "UNSUBSCRIBE"},
+					{"evt", "VOICE_STATE_CREATE"},
+					{"args",
+					{
+						{"channel_id", channelID}
+					}}
+				}.dump())))
+		{
+			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_CREATE message";
+			return;
+		}
+	}
+
+	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelEnterEventCreateLock);
+	m_enterEventChannelIDList.clear();
+	m_voiceChannelEnterEvent = nullptr;
+}
+
+void DiscordBear::Client::SubscribeOnVoiceChannelExit(
+	const std::vector<ChannelID>& channelIDList,
+	std::function<void(VoiceUserInfo&&)> voiceExitEvent)
+{
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelExitEventCreateLock);
+		if (m_voiceChannelExitEvent != nullptr)
+		{
+			LOG(LogSeverity::Severe) << "Already subscribed to Voice channel exit event, unsubscribe and resubscribe to change which channels you want to subscribe to.";
+			return;
+		}
+	}
+
+	for (auto& channelID : channelIDList)
+	{
+		if (!m_pipe.WriteMessage(
+			Message(Message::Opcode::Frame,
+				json
+				{
+					{"nonce", GenerateNonce()},
+					{"cmd", "SUBSCRIBE"},
+					{"evt", "VOICE_STATE_DELETE"},
+					{"args",
+					{
+						{"channel_id", channelID}
+					}}
+				}.dump())))
+		{
+			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_DELETE message";
+			return;
+		}
+	}
+
+	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelExitEventCreateLock);
+	m_exitEventChannelIDList = channelIDList;
+	m_voiceChannelExitEvent = voiceExitEvent;
+}
+void DiscordBear::Client::UnsubscribeOnVoiceChannelExit()
+{
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelExitEventCreateLock);
+		if (m_exitEventChannelIDList.empty())
+		{
+			return;
+		}
+	}
+
+	for (auto& channelID : m_exitEventChannelIDList)
+	{
+		if (!m_pipe.WriteMessage(
+			Message(Message::Opcode::Frame,
+				json
+				{
+					{"nonce", GenerateNonce()},
+					{"cmd", "UNSUBSCRIBE"},
+					{"evt", "VOICE_STATE_DELETE"},
+					{"args",
+					{
+						{"channel_id", channelID}
+					}}
+				}.dump())))
+		{
+			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_DELETE message";
+			return;
+		}
+	}
+
+	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelExitEventCreateLock);
+	m_exitEventChannelIDList.clear();
+	m_voiceChannelExitEvent = nullptr;
+}
+
 namespace
 {
 	bool GetGenericUserInfoFromJson(const json& userJson, GenericUserInfo& userInfo)
@@ -546,6 +691,26 @@ void DiscordBear::Client::Update()
 						SpeakingEventInfo speakingInfo;
 						GetSpeakingEventInfoFromJson(responseJson["data"], speakingInfo);
 						m_speakingEndEvent(std::move(speakingInfo));
+					}
+				}
+
+				{
+					concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelEnterEventCreateLock);
+					if (eventName == "VOICE_STATE_CREATE" && m_voiceChannelEnterEvent)
+					{
+						VoiceUserInfo voiceUserInfo;
+						GetVoiceUserInfoFromJson(responseJson["data"], voiceUserInfo);
+						m_voiceChannelEnterEvent(std::move(voiceUserInfo));
+					}
+				}
+
+				{
+					concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelExitEventCreateLock);
+					if (eventName == "VOICE_STATE_DELETE" && m_voiceChannelExitEvent)
+					{
+						VoiceUserInfo voiceUserInfo;
+						GetVoiceUserInfoFromJson(responseJson["data"], voiceUserInfo);
+						m_voiceChannelExitEvent(std::move(voiceUserInfo));
 					}
 				}
 			}

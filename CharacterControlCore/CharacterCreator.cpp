@@ -31,3 +31,8 @@ CharacterControlCore::Character CharacterControlCore::CharacterCreator::GetChara
 {
 	return Character(GetPathFromRoot(id, m_rootFile));
 }
+
+const std::filesystem::path& CharacterControlCore::CharacterCreator::GetPath()
+{
+	return m_rootFile.GetPath();
+}

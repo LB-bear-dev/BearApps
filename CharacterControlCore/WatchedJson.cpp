@@ -8,7 +8,7 @@ CharacterControlCore::WatchedJson::WatchedJson(std::filesystem::path filename) :
 
 bool CharacterControlCore::WatchedJson::Update()
 {
-	if (std::filesystem::last_write_time(m_filename) != m_lastChangedTime)
+	if (std::filesystem::exists(m_filename) && std::filesystem::last_write_time(m_filename) != m_lastChangedTime)
 	{
 		return true;
 	}
@@ -35,7 +35,7 @@ std::optional<json> CharacterControlCore::WatchedJson::Get()
 	return {};
 }
 
-std::filesystem::path CharacterControlCore::WatchedJson::GetPath() const
+const std::filesystem::path& CharacterControlCore::WatchedJson::GetPath() const
 {
 	return m_filename;
 }

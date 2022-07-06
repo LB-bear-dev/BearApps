@@ -9,7 +9,7 @@ namespace CharacterControlCore
 		bool Update();
 
 		std::optional<json> Get();
-		std::filesystem::path GetPath() const;
+		const std::filesystem::path& GetPath() const;
 
 	private:
 		std::filesystem::path m_filename;

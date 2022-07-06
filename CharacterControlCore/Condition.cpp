@@ -1,6 +1,8 @@
 #include "PCH.h"
 #include "Condition.h"
 
+#pragma optimize("", off)
+
 namespace
 {
 	template <typename T>
@@ -47,7 +49,7 @@ namespace
 	template<typename T>
 	CharacterControlCore::Conditional<T>::ConditionalFn GetFn(const std::string& fnName)
 	{
-		if (fnName == "EQUALS")
+		if (fnName == "EQUAL")
 		{
 			return &Equals;
 		}
@@ -59,7 +61,7 @@ namespace
 		{
 			return &Less;
 		}
-		else if (fnName == "Greater")
+		else if (fnName == "GREATER")
 		{
 			return &Greater;
 		}
@@ -75,12 +77,13 @@ namespace
 		{
 			//make this a message, but we don't accept any other types here.
 			assert(false);
+			return nullptr;
 		}
 	}
 
 	CharacterControlCore::Conditional<std::string>::ConditionalFn GetFnStr(const std::string& fnName)
 	{
-		if (fnName == "EQUALS")
+		if (fnName == "EQUAL")
 		{
 			return &Equals;
 		}
@@ -92,6 +95,7 @@ namespace
 		{
 			//make this a message, but we don't accept any other types here.
 			assert(false);
+			return nullptr;
 		}
 	}
 }
@@ -146,22 +150,22 @@ void CharacterControlCore::from_json(const json& j, Condition& c)
 		if (valJson.is_boolean())
 		{
 			Conditional<bool>::ConditionalFn op = GetFn<bool>(opJson.get<std::string>());
-			c.m_conditions.emplace_back(std::make_unique<Conditional<bool>>(joiner, varJson.get<std::string>(), valJson.get<bool>(), op));
+			c.m_conditions.emplace_back(std::make_shared<Conditional<bool>>(joiner, varJson.get<std::string>(), valJson.get<bool>(), op));
 		}
 		else if (valJson.is_number())
 		{
 			Conditional<int>::ConditionalFn op = GetFn<int>(opJson.get<std::string>());
-			c.m_conditions.emplace_back(std::make_unique<Conditional<int>>(joiner, varJson.get<std::string>(), valJson.get<int>(), op));
+			c.m_conditions.emplace_back(std::make_shared<Conditional<int>>(joiner, varJson.get<std::string>(), valJson.get<int>(), op));
 		}
 		else if (valJson.is_number_float())
 		{
 			Conditional<float>::ConditionalFn op = GetFn<float>(opJson.get<std::string>());
-			c.m_conditions.emplace_back(std::make_unique<Conditional<float>>(joiner, varJson.get<std::string>(), valJson.get<float>(), op));
+			c.m_conditions.emplace_back(std::make_shared<Conditional<float>>(joiner, varJson.get<std::string>(), valJson.get<float>(), op));
 		}
 		else if (valJson.is_string())
 		{
 			Conditional<std::string>::ConditionalFn op = GetFnStr(opJson.get<std::string>());
-			c.m_conditions.emplace_back(std::make_unique<Conditional<std::string>>(joiner, varJson.get<std::string>(), valJson.get<std::string>(), op));
+			c.m_conditions.emplace_back(std::make_shared<Conditional<std::string>>(joiner, varJson.get<std::string>(), valJson.get<std::string>(), op));
 		}
 	}
 }

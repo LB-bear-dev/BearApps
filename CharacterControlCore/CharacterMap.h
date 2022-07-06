@@ -1,5 +1,6 @@
 #pragma once
 #include "Character.h"
+#pragma optimize("", off)
 namespace CharacterControlCore
 {
 	struct ThreadSafeCharacter
@@ -10,93 +11,102 @@ namespace CharacterControlCore
 		std::shared_mutex mutex;
 		Character character;
 	};
+	using ThreadSafeCharacterMap = std::map<std::string, ThreadSafeCharacter>;
 
 	class CharacterMapInstance
 	{
 	private:
-		using Map = std::unordered_map<std::string, ThreadSafeCharacter>;
 	public:
 		CharacterMapInstance(
-			Map& container,
-			std::shared_mutex& containerMutex):
+			ThreadSafeCharacterMap* container,
+			std::shared_mutex* containerMutex):
 			m_container(container),
 			m_containerMutex(containerMutex){}
 
 		~CharacterMapInstance()
 		{
-			m_containerMutex.unlock();
+			m_containerMutex->unlock();
 		}
 
-		Map* operator->()
+		ThreadSafeCharacterMap* operator->()
 		{
-			return &m_container;
+			return m_container;
 		}
 
 	private:
-		Map& m_container;
-		std::shared_mutex& m_containerMutex;
+		ThreadSafeCharacterMap* m_container;
+		std::shared_mutex* m_containerMutex;
 	};
 
 	class CharacterMapElementInstance
 	{
 	public:
 		CharacterMapElementInstance(
-			Character& element,
-			std::shared_mutex& containerMutex,
-			std::shared_mutex& elementMutex) :
+			const Character* element,
+			std::shared_mutex* containerMutex,
+			std::shared_mutex* elementMutex) :
 			m_element(element),
 			m_containerMutex(containerMutex),
 			m_elementMutex(elementMutex){}
 
 		~CharacterMapElementInstance()
 		{
-			m_containerMutex.unlock_shared();
-			m_elementMutex.unlock_shared();
+			m_containerMutex->unlock_shared();
+			m_elementMutex->unlock_shared();
 		}
 
-		Character* operator->() const
+		bool Valid()
 		{
-			return &m_element;
+			return m_element && m_containerMutex && m_elementMutex;
+		}
+
+		const Character* operator->() const
+		{
+			return m_element;
 		}
 
 	private:
-		Character& m_element;
-		std::shared_mutex& m_containerMutex;
-		std::shared_mutex& m_elementMutex;
+		const Character* m_element;
+		std::shared_mutex* m_containerMutex;
+		std::shared_mutex* m_elementMutex;
 	};
 
 	class CharacterMapElementInstanceMutable
 	{
 	public:
 		CharacterMapElementInstanceMutable(
-			const Character& element,
-			std::shared_mutex& containerMutex,
-			std::shared_mutex& elementMutex) :
+			Character* element,
+			std::shared_mutex* containerMutex,
+			std::shared_mutex* elementMutex) :
 			m_element(element),
 			m_containerMutex(containerMutex),
 			m_elementMutex(elementMutex){}
 
 		~CharacterMapElementInstanceMutable()
 		{
-			m_containerMutex.unlock_shared();
-			m_elementMutex.unlock();
+			m_containerMutex->unlock_shared();
+			m_elementMutex->unlock();
 		}
 
-		const Character* operator->() const
+		bool Valid()
 		{
-			return &m_element;
+			return m_element && m_containerMutex && m_elementMutex;
+		}
+
+		Character* operator->() const
+		{
+			return m_element;
 		}
 
 	private:
-		const Character& m_element;
-		std::shared_mutex& m_containerMutex;
-		std::shared_mutex& m_elementMutex;
+		Character* m_element;
+		std::shared_mutex* m_containerMutex;
+		std::shared_mutex* m_elementMutex;
 	};
 
 	class CharacterMap
 	{
 	private:
-		using Map = std::unordered_map<std::string, ThreadSafeCharacter>;
 		using Vector = Concurrency::concurrent_vector<std::string>;
 
 	public:
@@ -105,10 +115,10 @@ namespace CharacterControlCore
 		{
 			m_containerMutex.lock();
 			m_updated.clear();
-			return CharacterMapInstance(m_container, m_containerMutex);
+			return CharacterMapInstance(&m_container, &m_containerMutex);
 		}
 
-		std::optional<CharacterMapElementInstance> GetElement(const std::string& key)
+		CharacterMapElementInstance GetCharacter(const std::string& key)
 		{
 			m_containerMutex.lock_shared();
 			auto element = m_container.find(key);
@@ -119,14 +129,14 @@ namespace CharacterControlCore
 				element->second.mutex.lock_shared();
 
 				//Does not return container lock until the element instance has been released
-				return CharacterMapElementInstance(element->second.character, m_containerMutex, element->second.mutex);
+				return CharacterMapElementInstance(&element->second.character, &m_containerMutex, &element->second.mutex);
 			}
 
 			m_containerMutex.unlock_shared();
-			return {};
+			return CharacterMapElementInstance(nullptr, nullptr, nullptr);
 		}
 
-		std::optional<CharacterMapElementInstanceMutable> GetElementMutable(const std::string& key)
+		CharacterMapElementInstanceMutable GetCharacterMutable(const std::string& key)
 		{
 			m_containerMutex.lock_shared();
 			auto element = m_container.find(key);
@@ -138,11 +148,11 @@ namespace CharacterControlCore
 				element->second.mutex.lock();
 
 				//Does not return container lock until the element instance has been released
-				return CharacterMapElementInstanceMutable(element->second.character, m_containerMutex, element->second.mutex);
+				return CharacterMapElementInstanceMutable(&element->second.character, &m_containerMutex, &element->second.mutex);
 			}
 
 			m_containerMutex.unlock_shared();
-			return {};
+			return CharacterMapElementInstanceMutable(nullptr, nullptr, nullptr);
 		}
 
 		Vector GetUpdatedCharacters()
@@ -154,7 +164,7 @@ namespace CharacterControlCore
 		}
 
 	private:
-		Map m_container;
+		ThreadSafeCharacterMap m_container;
 		Vector m_updated;
 		std::shared_mutex m_containerMutex;
 	};

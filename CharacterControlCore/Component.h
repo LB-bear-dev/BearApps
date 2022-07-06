@@ -1,8 +1,8 @@
 #pragma once
-#include "CharacterMap.h"
-#include "CharacterCreator.h"
 namespace CharacterControlCore
 {
+	class CharacterCreator;
+	class CharacterMap;
 	class InputComponent
 	{
 	public:

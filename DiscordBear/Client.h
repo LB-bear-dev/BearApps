@@ -24,6 +24,16 @@ namespace DiscordBear
 			std::function<void(SpeakingEventInfo&&)> speakingEndEvent);
 		void UnsubscribeOnVoiceChannelSpeak();
 
+		void SubscribeOnVoiceChannelEnter(
+			const std::vector<ChannelID>& channelID,
+			std::function<void(VoiceUserInfo&&)> voiceEnterEvent);
+		void UnsubscribeOnVoiceChannelEnter();
+
+		void SubscribeOnVoiceChannelExit(
+			const std::vector<ChannelID>& channelID,
+			std::function<void(VoiceUserInfo&&)> voiceExitEvent);
+		void UnsubscribeOnVoiceChannelExit();
+
 		void Update();
 		void UpdateAsync();
 	private:
@@ -44,5 +54,13 @@ namespace DiscordBear
 		std::vector<ChannelID> m_speakingEventChannelIDList;
 		std::function<void(SpeakingEventInfo&&)> m_speakingStartEvent;
 		std::function<void(SpeakingEventInfo&&)> m_speakingEndEvent;
+
+		concurrency::reader_writer_lock m_voiceChannelEnterEventCreateLock;
+		std::vector<ChannelID> m_enterEventChannelIDList;
+		std::function<void(VoiceUserInfo&&)> m_voiceChannelEnterEvent;
+
+		concurrency::reader_writer_lock m_voiceChannelExitEventCreateLock;
+		std::vector<ChannelID> m_exitEventChannelIDList;
+		std::function<void(VoiceUserInfo&&)> m_voiceChannelExitEvent;
 	};
 }

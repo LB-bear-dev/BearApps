@@ -10,10 +10,6 @@ CharacterControlCore::CharacterControl::CharacterControl(std::string& filename):
 	m_components.push_back(std::move(discordPtr));
 }
 
-CharacterControlCore::CharacterControl::~CharacterControl()
-{
-}
-
 void CharacterControlCore::CharacterControl::Update()
 {
 	m_characterCreator.Update();
@@ -23,12 +19,45 @@ void CharacterControlCore::CharacterControl::Update()
 		component->Update();
 	}
 
-	for (auto updatingCharacter : m_activeCharacters.GetUpdatedCharacters())
+	for (const std::string& updatingCharacter : m_activeCharacters.GetUpdatedCharacters())
 	{
-		auto element = m_activeCharacters.GetElement(updatingCharacter);
-		if (element.has_value())
+		CharacterMapElementInstanceMutable element = m_activeCharacters.GetCharacterMutable(updatingCharacter);
+		if (element.Valid())
 		{
-			element.value()->Update();
+			element->Update();
+
+			UpdateCharacterInfo(updatingCharacter, element);
 		}
 	}
+}
+
+const std::filesystem::path& CharacterControlCore::CharacterControl::GetContentRoot()
+{
+	return m_characterCreator.GetPath();
+}
+
+const CharacterControlCore::CharacterInfoList& CharacterControlCore::CharacterControl::GetCharacterList()
+{
+	return m_characterList;
+}
+
+void CharacterControlCore::CharacterControl::UpdateCharacterInfo(const std::string& characterID, CharacterMapElementInstanceMutable& element)
+{
+	auto character = std::find_if(m_characterList.begin(), m_characterList.end(), [&characterID](const CharacterInfo& lhs) { return lhs.ID == characterID; });
+	if (character == m_characterList.end())
+	{
+		m_characterList.resize(m_characterList.size()+1);
+		character = m_characterList.end();
+		character--;
+	}
+
+	character->ID = characterID;
+	auto nickname = element->GetAttributes().GetAttribute<std::string>("nickname");
+	if (nickname != nullptr)
+	{
+		character->name = *nickname;
+	}
+
+	character->imageInfos.clear();
+	character->imageInfos.emplace_back(0.0f, 0.0f, characterID, element->GetVisualLayerRoot().GetCurrentImageName());
 }

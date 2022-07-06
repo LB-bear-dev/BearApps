@@ -1,6 +1,6 @@
 #include <memory>
 #include "../DiscordBear/Interface.h"
-#include "../CharacterControlCore/Interface.h"
+#include "../CharacterControlInterface/Interface.h"
 #include <iostream>
 #include <thread>
 #include <ppltasks.h>
@@ -76,13 +76,14 @@
 //	return 0;
 //}  
 
-int main()
+int main(int argc, char* argv[])
 {
 	DiscordBear::SetLogFn([](LogSeverity severity, const char* message) { std::cout << message << std::endl; });
 	CharacterControlCore::ControlCorePtr characterControl;
 	try
 	{
 		characterControl = CharacterControlCore::GetCharacterControl("C:\\Users\\chris\\OneDrive\\Documents\\OBSCharacterSettings\\globalSettings.json");
+		CharacterControlCore::InitControlUI(characterControl);
 	}
 	catch (...)
 	{
