@@ -30,13 +30,9 @@ std::size_t CharacterControlCore::GetImageInfoHash(const std::string& characterI
 
 CharacterControlCore::ControlCorePtr CharacterControlCore::GetCharacterControl(std::string controlFile)
 {
-	return std::make_shared<CharacterControl>(controlFile);
+	return std::make_unique<CharacterControl>(controlFile);
 }
 
-void CharacterControlCore::InitControlUI(ControlCorePtr controlPtr)
+void CharacterControlCore::InitControlUI(ControlCore& controlPtr)
 {
-	if (controlPtr != nullptr)
-	{
-		StartUp();
-	}
 }

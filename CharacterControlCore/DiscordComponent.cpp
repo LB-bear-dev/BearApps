@@ -8,8 +8,8 @@
 CharacterControlCore::DiscordComponent::DiscordComponent(CharacterCreator& creator, CharacterMap& characters):
 	m_discordClient(nullptr), InputComponent(creator, characters)
 {
-	std::string ID = "889010164760461322";
-	std::string Secret = "vkfhch9vw8NNRnhVMPeQKoIb7exvCWOM";
+	static const std::string ID = "889010164760461322";
+	static const std::string Secret = "vkfhch9vw8NNRnhVMPeQKoIb7exvCWOM";
 
 	m_discordClient = DiscordBear::GetDiscordClient(ID, Secret);
 

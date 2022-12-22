@@ -1,5 +1,5 @@
 #pragma once
-#include "../CharacterControlInterface/Interface.h"
+#include "../CharacterControlCore/Interface.h"
 #include "Component.h"
 #include "CharacterCreator.h"
 #include "CharacterMap.h"

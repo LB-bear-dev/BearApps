@@ -30,7 +30,7 @@ namespace CharacterControlCore
 	template<typename T>
 	inline void Attributes::CreateAttribute(const std::string& key, T defaultValue)
 	{
-		static_assert(false);
+		
 	}
 
 	template<>
@@ -68,7 +68,7 @@ namespace CharacterControlCore
 	template<typename T>
 	inline T* Attributes::GetAttribute(const std::string& key) 
 	{
-		static_assert(false);
+		
 		return nullptr;
 	}
 

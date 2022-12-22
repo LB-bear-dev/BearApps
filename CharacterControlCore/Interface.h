@@ -1,9 +1,9 @@
 #pragma once
 
 #if defined(CHARACTERCONTROLCORE)
-#define DLLINTERFACE   __declspec( dllexport )
+#define CHARACTERCONTROLCOREDLLINTERFACE   __declspec( dllexport )
 #else
-#define DLLINTERFACE   __declspec( dllimport )
+#define CHARACTERCONTROLCOREDLLINTERFACE   __declspec( dllimport )
 #endif
 
 #include <filesystem>
@@ -11,7 +11,7 @@
 
 namespace CharacterControlCore
 {
-	DLLINTERFACE std::size_t GetImageInfoHash(const std::string& characterID, const std::string& imageName);
+	CHARACTERCONTROLCOREDLLINTERFACE std::size_t GetImageInfoHash(const std::string& characterID, const std::string& imageName);
 
 	struct Vector2D
 	{
@@ -53,8 +53,8 @@ namespace CharacterControlCore
 		virtual const CharacterInfoList& GetCharacterList() = 0;
 	};
 
-	using ControlCorePtr = std::shared_ptr<ControlCore>;
-	DLLINTERFACE ControlCorePtr GetCharacterControl(std::string controlFile);
+	using ControlCorePtr = std::unique_ptr<ControlCore>;
+	CHARACTERCONTROLCOREDLLINTERFACE ControlCorePtr GetCharacterControl(std::string controlFile);
 
-	DLLINTERFACE void InitControlUI(CharacterControlCore::ControlCorePtr controlPtr);
+	CHARACTERCONTROLCOREDLLINTERFACE void InitControlUI(CharacterControlCore::ControlCore& controlPtr);
 }
