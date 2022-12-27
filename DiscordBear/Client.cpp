@@ -728,8 +728,5 @@ void DiscordBear::Client::Update()
 
 void DiscordBear::Client::UpdateAsync()
 {
-	if (m_asyncUpdateTask.is_done())
-	{
-		m_asyncUpdateTask = concurrency::create_task([this]() { Update(); });
-	}
+	Update ();
 }

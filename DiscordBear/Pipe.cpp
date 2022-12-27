@@ -159,7 +159,7 @@ namespace DiscordBear
 			std::this_thread::sleep_for(sleepTime);
 		}
 
-		Message message(bytesToRead);
+		Message message(bytesToRead+1);
 
 		LOG(LogSeverity::Verbose) << "Attempting to read message from pipe";
 		DWORD cbRead = 0;
@@ -169,6 +169,8 @@ namespace DiscordBear
 			message.m_byteSize,
 			&cbRead,
 			nullptr);
+
+		((char*)message.GetData())[bytesToRead] = 0;
 
 		if (!success)
 		{

@@ -58,6 +58,15 @@ void CharacterControlCore::CharacterControl::UpdateCharacterInfo(const std::stri
 		character->name = *nickname;
 	}
 
-	character->imageInfos.clear();
-	character->imageInfos.emplace_back(0.0f, 0.0f, characterID, element->GetVisualLayerRoot().GetCurrentImageName());
+	const ImageResource* image = element->GetImageResources().GetResource( element->GetVisualLayerRoot().GetCurrentImageName() );
+
+	if ( image != nullptr )
+	{
+		std::filesystem::path path = m_characterCreator.GetPath ().parent_path ();
+		path /= characterID;
+		path /= image->GetFilename();
+
+		character->imageInfos.clear ();
+		character->imageInfos.emplace_back ( path.string ().c_str () );
+	}
 }

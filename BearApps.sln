@@ -16,44 +16,36 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestCore", "TestCore\TestCo
 		{BFCA101D-EF22-486E-AE76-D91C884718BB} = {BFCA101D-EF22-486E-AE76-D91C884718BB}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CharacterControlOBS", "CharacterControlOBS\CharacterControlOBS.vcxproj", "{3C349A86-4409-4B3D-8E58-957DDA5D9994}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
-		Debug|x86 = Debug|x86
 		Release|x64 = Release|x64
-		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{41006BB7-480B-45E1-A601-A6E30928F280}.Debug|x64.ActiveCfg = Debug|x64
 		{41006BB7-480B-45E1-A601-A6E30928F280}.Debug|x64.Build.0 = Debug|x64
-		{41006BB7-480B-45E1-A601-A6E30928F280}.Debug|x86.ActiveCfg = Debug|x64
-		{41006BB7-480B-45E1-A601-A6E30928F280}.Debug|x86.Build.0 = Debug|x64
 		{41006BB7-480B-45E1-A601-A6E30928F280}.Release|x64.ActiveCfg = Release|x64
 		{41006BB7-480B-45E1-A601-A6E30928F280}.Release|x64.Build.0 = Release|x64
-		{41006BB7-480B-45E1-A601-A6E30928F280}.Release|x86.ActiveCfg = Release|x64
-		{41006BB7-480B-45E1-A601-A6E30928F280}.Release|x86.Build.0 = Release|x64
 		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Debug|x64.ActiveCfg = Debug|x64
 		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Debug|x64.Build.0 = Debug|x64
-		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Debug|x86.ActiveCfg = Debug|Win32
-		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Debug|x86.Build.0 = Debug|Win32
 		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Release|x64.ActiveCfg = Release|x64
 		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Release|x64.Build.0 = Release|x64
-		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Release|x86.ActiveCfg = Release|Win32
-		{BFCA101D-EF22-486E-AE76-D91C884718BB}.Release|x86.Build.0 = Release|Win32
 		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Debug|x64.ActiveCfg = Debug|x64
 		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Debug|x64.Build.0 = Debug|x64
-		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Debug|x86.ActiveCfg = Debug|Win32
-		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Debug|x86.Build.0 = Debug|Win32
 		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Release|x64.ActiveCfg = Release|x64
 		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Release|x64.Build.0 = Release|x64
-		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Release|x86.ActiveCfg = Release|Win32
-		{7A4D10B7-1223-4E2B-8A35-4D4EDE65ADDE}.Release|x86.Build.0 = Release|Win32
+		{3C349A86-4409-4B3D-8E58-957DDA5D9994}.Debug|x64.ActiveCfg = Debug|x64
+		{3C349A86-4409-4B3D-8E58-957DDA5D9994}.Debug|x64.Build.0 = Debug|x64
+		{3C349A86-4409-4B3D-8E58-957DDA5D9994}.Release|x64.ActiveCfg = Release|x64
+		{3C349A86-4409-4B3D-8E58-957DDA5D9994}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {DB779A7B-6937-4BA6-A1FB-59EE39714C65}
 		Qt5Version = 5.15.0_msvc2019_64
+		SolutionGuid = {DB779A7B-6937-4BA6-A1FB-59EE39714C65}
 	EndGlobalSection
 EndGlobal

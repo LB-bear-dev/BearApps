@@ -11,29 +11,11 @@
 
 namespace CharacterControlCore
 {
-	CHARACTERCONTROLCOREDLLINTERFACE std::size_t GetImageInfoHash(const std::string& characterID, const std::string& imageName);
-
-	struct Vector2D
-	{
-		float x;
-		float y;
-	};
-
 	struct ImageInfo
 	{
-		ImageInfo(): x(0), y(0), imageToken(0) {}
-		ImageInfo(float _x, float _y, const std::string& characterID, const std::string& imageName): x(_x), y(_y), imageToken(GetImageInfoHash(characterID, imageName)) {}
+		ImageInfo(const std::string& _imageName): imageName ( _imageName ) {}
 
-		union
-		{
-			struct
-			{
-				float x;
-				float y;
-			};
-			Vector2D position;
-		};
-		std::size_t imageToken;
+		std::string imageName;
 	};
 
 	struct CharacterInfo
@@ -53,8 +35,6 @@ namespace CharacterControlCore
 		virtual const CharacterInfoList& GetCharacterList() = 0;
 	};
 
-	using ControlCorePtr = std::unique_ptr<ControlCore>;
+	using ControlCorePtr = std::shared_ptr<ControlCore>;
 	CHARACTERCONTROLCOREDLLINTERFACE ControlCorePtr GetCharacterControl(std::string controlFile);
-
-	CHARACTERCONTROLCOREDLLINTERFACE void InitControlUI(CharacterControlCore::ControlCore& controlPtr);
 }

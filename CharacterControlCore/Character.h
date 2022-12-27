@@ -12,7 +12,8 @@ namespace CharacterControlCore
 
 		const Attributes& GetAttributes() const;
 		Attributes& GetAttributesMutable();
-		const VisualLayer& GetVisualLayerRoot()const;
+		const VisualLayer& GetVisualLayerRoot() const;
+		const ImageResources& GetImageResources() const;
 	private:
 		friend class CharacterCreator;
 		Character(std::filesystem::path filename);

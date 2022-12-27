@@ -19,20 +19,15 @@ namespace
 	}
 }
 
-std::size_t CharacterControlCore::GetImageInfoHash(const std::string& characterID, const std::string& imageName)
-{
-	std::hash<std::string> strHash;
-	std::size_t imageToken = strHash(imageName);
-	imageToken = hash_combine(imageToken, strHash(characterID));
-
-	return imageToken;
-}
-
 CharacterControlCore::ControlCorePtr CharacterControlCore::GetCharacterControl(std::string controlFile)
 {
-	return std::make_unique<CharacterControl>(controlFile);
-}
-
-void CharacterControlCore::InitControlUI(ControlCore& controlPtr)
-{
+	static std::weak_ptr<ControlCore> alreadyCreatedControl;
+	if ( alreadyCreatedControl.expired() )
+	{
+		CharacterControlCore::ControlCorePtr ptr = std::make_shared<CharacterControl>( controlFile );
+		alreadyCreatedControl = ptr;
+		return ptr;
+	}
+	
+	return alreadyCreatedControl.lock();
 }

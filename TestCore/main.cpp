@@ -79,7 +79,6 @@ int main(int argc, char* argv[])
 	try
 	{
 		characterControl = CharacterControlCore::GetCharacterControl("C:\\Users\\chris\\OneDrive\\Documents\\OBSCharacterSettings\\globalSettings.json");
-		CharacterControlCore::InitControlUI(*characterControl);
 	}
 	catch (...)
 	{
@@ -90,7 +89,7 @@ int main(int argc, char* argv[])
 	{
 		while(1)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds (100));
+			std::this_thread::sleep_for(std::chrono::milliseconds (32));
 			characterControl->Update();
 		}
 	}

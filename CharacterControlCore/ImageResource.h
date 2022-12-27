@@ -25,7 +25,7 @@ namespace CharacterControlCore
 	class ImageResources
 	{
 	public:
-		std::optional<const ImageResource*> GetResource(const std::string& resourceName) const
+		const ImageResource* GetResource(const std::string& resourceName) const
 		{
 			auto foundResource = m_resources.find(resourceName);
 			if (foundResource != m_resources.end())
@@ -33,7 +33,7 @@ namespace CharacterControlCore
 				return &foundResource->second;
 			}
 
-			return {};
+			return nullptr;
 		}
 
 	private:

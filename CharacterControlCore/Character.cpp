@@ -27,6 +27,11 @@ const CharacterControlCore::VisualLayer& CharacterControlCore::Character::GetVis
 	return m_visualLayerRoot;
 }
 
+const CharacterControlCore::ImageResources& CharacterControlCore::Character::GetImageResources() const
+{
+	return m_imageResources;
+}
+
 CharacterControlCore::Character::Character(std::filesystem::path filename):
 	m_characterJson(filename)
 {
