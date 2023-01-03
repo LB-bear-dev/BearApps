@@ -99,6 +99,11 @@ bool Authorize(Pipe& pipe, const std::string& appID, std::string& authorizationC
 		return false;
 	}
 
+	if ( responseJson["evt"] == "ERROR" )
+	{
+		return false;
+	}
+
 	authorizationCode = responseJson["data"]["code"];
 
 	return true;

@@ -17,60 +17,59 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
 #include <obs-module.h>
-#include <graphics/image-file.h>
+#include <util/dstr.h>
 #include <string>
 #include <CharacterControlCore/Interface.h>
-#include <unordered_map>
+#include "DiscordCharacterInfo.h"
 #include <utility>
+#include <shlobj_core.h>
 
 #include "plugin-macros.h"
+#include "WatchedImage.h"
+
+#pragma optimize("", off)
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
-#define debug(format, ...) blog(LOG_DEBUG, format, ##__VA_ARGS__)
-#define info(format, ...) blog(LOG_INFO, format, ##__VA_ARGS__)
-#define warn(format, ...) blog(LOG_WARNING, format, ##__VA_ARGS__)
-
 namespace
 {
-	void UnloadImage ( gs_image_file4* image )
+	std::optional<std::filesystem::path> GetGlobalSettingsPath()
 	{
-		obs_enter_graphics ();
-		gs_image_file4_free ( image );
-		obs_leave_graphics ();
+		try
+		{
+			char documentsFolder[MAX_PATH] = { 0 };
+			HRESULT result = SHGetFolderPathA( NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, documentsFolder );
+
+			if ( SUCCEEDED( result ) )
+			{
+				return std::make_optional( std::filesystem::path( documentsFolder ) / "OBSCharacterSettings" / "globalSettings.json" );
+			}
+		}
+		catch ( ... )
+		{
+		}
+
+		return {};
 	}
 
-	void LoadImage (std::string fileName, gs_image_file4* image)
+	void CreateCharacterControl( obs_data_t* settings, CharacterControlOBS::DiscordCharacterInfo*& characterInfo )
 	{
-		UnloadImage ( image );
-
-		if (!fileName.empty()) 
+		if ( characterInfo != nullptr )
 		{
-			debug("loading texture '%s'", fileName.c_str());
-			gs_image_file4_init(image, fileName.c_str(), GS_IMAGE_ALPHA_PREMULTIPLY);
+			delete characterInfo;
+		}
 
-			obs_enter_graphics();
-			gs_image_file4_init_texture(image);
-			obs_leave_graphics();
-
-			if (!image->image3.image2.image.loaded) 
+		if ( const char* id = obs_data_get_string( settings, "discordID" ) )
+		{
+			std::optional<std::filesystem::path> path = GetGlobalSettingsPath();
+			if ( path.has_value() )
 			{
-				warn("failed to load texture '%s'", fileName.c_str());
+				characterInfo = new CharacterControlOBS::DiscordCharacterInfo( id, path->string().c_str() );
 			}
 		}
 	}
-}
 
-namespace
-{
-	struct DiscordImage
-	{
-		CharacterControlCore::ControlCorePtr characterControl;
-		std::unordered_map<size_t, gs_image_file4> images;
-
-		gs_image_file4* currentImage;
-	};
 
 	const char* GetName(void* unused)
 	{
@@ -80,118 +79,149 @@ namespace
 
 	void* Create(obs_data_t* settings, obs_source_t* source)
 	{
-		UNUSED_PARAMETER ( settings );
-		UNUSED_PARAMETER ( source );
-		DiscordImage* image = new DiscordImage;
-		try
+		if ( source == nullptr || settings == nullptr )
 		{
-			image->characterControl = CharacterControlCore::GetCharacterControl ( "C:\\Users\\chris\\OneDrive\\Documents\\OBSCharacterSettings\\globalSettings.json" );
+			return nullptr;
 		}
-		catch ( ... ){}
 
-		image->currentImage = nullptr;
-		return image;
+		UNUSED_PARAMETER ( source );
+
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = nullptr;
+		CreateCharacterControl( settings, characterInfo );
+
+		return characterInfo;
 	}
 
 	void Destroy(void *data)
 	{
-		DiscordImage* image = (DiscordImage*)data;
-		delete image;
-	}
-
-	void Update(void *data, obs_data_t *settings) 
-	{
-		DiscordImage* image = (DiscordImage*)data;
-		image->characterControl->Update();
-		UNUSED_PARAMETER(settings);
-		UNUSED_PARAMETER(data);
-	}
-
-	uint32_t GetWidth(void *data)
-	{
-		DiscordImage* image4 = (DiscordImage*)data;
-		if ( image4->currentImage != nullptr )
-		{
-			gs_image_file* image = &image4->currentImage->image3.image2.image;
-
-			return image->cx;
-		}
-
-		return 0;
-	}
-
-	uint32_t GetHeight(void *data)
-	{
-		DiscordImage* image4 = (DiscordImage*)data;
-		if ( image4->currentImage != nullptr )
-		{
-			gs_image_file* image = &image4->currentImage->image3.image2.image;
-
-			return image->cy;
-		}
-
-		return 0;
-	}
-
-	void Render(void* data, gs_effect_t* effect)
-	{
-		DiscordImage* image4 = (DiscordImage*)data;
-		if ( image4->currentImage == nullptr )
-		{
-			return ;
-		}
-
-		gs_image_file* image = &image4->currentImage->image3.image2.image;
-		gs_texture_t* texture = image->texture;
-		if ( texture == nullptr )
+		if ( data == nullptr )
 		{
 			return;
 		}
 
-		bool previous = gs_framebuffer_srgb_enabled();
-		gs_enable_framebuffer_srgb(true);
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = (CharacterControlOBS::DiscordCharacterInfo*)data;
+		delete characterInfo;
+	}
 
-		gs_blend_state_push();
-		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+	uint32_t GetWidth(void *data)
+	{
+		if ( data == nullptr )
+		{
+			return 100;
+		}
 
-		gs_eparam_t* param = gs_effect_get_param_by_name(effect, "image");
-		gs_effect_set_texture_srgb(param, texture);
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = (CharacterControlOBS::DiscordCharacterInfo*)data;
+		if ( const CharacterControlOBS::WatchedImage* currentImage = characterInfo->GetCurrentImage() )
+		{
+			const gs_image_file* image = &currentImage->Get()->image3.image2.image;
 
-		gs_draw_sprite(texture, 0, image->cx, image->cy);
+			return image->cx;
+		}
 
-		gs_blend_state_pop();
+		return 100;
+	}
 
-		gs_enable_framebuffer_srgb(previous);
+	uint32_t GetHeight(void *data)
+	{
+		if ( data == nullptr )
+		{
+			return 100;
+		}
+
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = (CharacterControlOBS::DiscordCharacterInfo*)data;
+		if ( const CharacterControlOBS::WatchedImage* currentImage = characterInfo->GetCurrentImage() )
+		{
+			const gs_image_file* image = &currentImage->Get()->image3.image2.image;
+
+			return image->cy;
+		}
+
+		return 100;
+	}
+
+	void GetDefaults( obs_data_t* settings )
+	{
+		if ( settings == nullptr )
+		{
+			return;
+		}
+
+		obs_data_set_default_string( settings, "discordID", "0");
+	}
+
+	obs_properties_t* GetProperties( void* data )
+	{
+		obs_properties_t* settings = obs_properties_create();
+
+		if ( data == nullptr )
+		{
+			return settings;
+		}
+
+		obs_properties_add_text( settings, "discordID", obs_module_text( "Discord ID" ), OBS_TEXT_DEFAULT);
+
+		return settings;
+	}
+
+	void Update( void* data, obs_data_t* settings )
+	{
+		if ( data == nullptr || settings == nullptr )
+		{
+			return;
+		}
+
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = (CharacterControlOBS::DiscordCharacterInfo*)data;
+
+		const char* id = obs_data_get_string( settings, "discordID" );
+		if ( id != nullptr && strcmp(id, characterInfo->GetID()) != 0 )
+		{
+			CreateCharacterControl( settings, characterInfo );
+		}
 	}
 
 	void Tick( void* data, float seconds )
 	{
 		UNUSED_PARAMETER( seconds );
 
-		DiscordImage* image = (DiscordImage*)data;
-		image->characterControl->Update();
-		auto& characterList = image->characterControl->GetCharacterList();
-		auto foundCharacter = std::find_if( characterList.begin(), characterList.end(), []( const CharacterControlCore::CharacterInfo& info )
+		if ( data == nullptr )
 		{
-			return info.ID == "186199041414004739";
-		} );
-
-		if ( foundCharacter != characterList.end() )
-		{
-			std::hash<std::string> stringHash;
-			size_t hash = stringHash( foundCharacter->imageInfos[0].imageName );
-
-			auto foundImage = image->images.find( hash );
-			if ( foundImage == image->images.end() )
-			{
-				LoadImage( foundCharacter->imageInfos[0].imageName, &image->images[hash] );
-			}
-
-			image->currentImage = &image->images[hash];
+			return;
 		}
-		else
+
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = (CharacterControlOBS::DiscordCharacterInfo*)data;
+		characterInfo->Update();
+
+	}
+
+	void Render(void* data, gs_effect_t* effect)
+	{
+		if ( data == nullptr || effect == nullptr )
 		{
-			image->currentImage = nullptr;
+			return;
+		}
+
+		CharacterControlOBS::DiscordCharacterInfo* characterInfo = (CharacterControlOBS::DiscordCharacterInfo*)data;
+		if ( const CharacterControlOBS::WatchedImage* currentImage = characterInfo->GetCurrentImage() )
+		{
+			const gs_image_file* image = &currentImage->Get()->image3.image2.image;
+
+			if ( gs_texture_t* texture = image->texture )
+			{
+				bool previous = gs_framebuffer_srgb_enabled();
+				gs_enable_framebuffer_srgb( true );
+
+				gs_blend_state_push();
+				gs_blend_function( GS_BLEND_ONE, GS_BLEND_INVSRCALPHA );
+
+				gs_eparam_t* param = gs_effect_get_param_by_name( effect, "image" );
+				gs_effect_set_texture_srgb( param, texture );
+
+				gs_draw_sprite( texture, 0, image->cx, image->cy );
+
+				gs_blend_state_pop();
+
+				gs_enable_framebuffer_srgb( previous );
+			}
 		}
 	}
 
@@ -204,14 +234,14 @@ namespace
 		.destroy = Destroy,
 		.get_width = GetWidth,
 		.get_height = GetHeight,
+		.get_defaults = GetDefaults,
+		.get_properties = GetProperties,
 		.update = Update,
-		//get_defaults = pluginUpdate,
 		//show = image_source_show,
 		//hide = image_source_hide,
 		.video_tick = Tick,
 		.video_render = Render,
 		//missing_files = image_source_missingfiles,
-		//get_properties = image_source_properties,
 		//icon_type = OBS_ICON_TYPE_IMAGE,
 		//activate = image_source_activate,
 		//video_get_color_space = image_source_get_color_space,

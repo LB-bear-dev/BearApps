@@ -6,35 +6,33 @@
 #define CHARACTERCONTROLCOREDLLINTERFACE   __declspec( dllimport )
 #endif
 
-#include <filesystem>
 #include <vector>
+#include <memory>
+#include <string>
 
 namespace CharacterControlCore
 {
 	struct ImageInfo
 	{
-		ImageInfo(const std::string& _imageName): imageName ( _imageName ) {}
-
-		std::string imageName;
+		std::string filename;
 	};
+	using ImageInfoList = std::vector<ImageInfo>;
 
-	struct CharacterInfo
+	class CharacterInfo
 	{
-		std::string name;
-		std::string ID;
-		std::vector<ImageInfo> imageInfos;
+	public:
+		virtual const char* Name() const = 0;
+		virtual const ImageInfoList& CurrentImageStack() const = 0;
+		virtual const ImageInfoList& ImageLibrary() const = 0;
 	};
 
-	using CharacterInfoList = std::vector<CharacterControlCore::CharacterInfo>;
 	class ControlCore
 	{
 	public:
-		virtual ~ControlCore() {}
 		virtual void Update() = 0;
-		virtual const std::filesystem::path& GetContentRoot() = 0;
-		virtual const CharacterInfoList& GetCharacterList() = 0;
+		virtual const CharacterControlCore::CharacterInfo* GetCharacter( size_t m_ID ) const = 0;
 	};
 
 	using ControlCorePtr = std::shared_ptr<ControlCore>;
-	CHARACTERCONTROLCOREDLLINTERFACE ControlCorePtr GetCharacterControl(std::string controlFile);
+	CHARACTERCONTROLCOREDLLINTERFACE ControlCorePtr GetCharacterControl(const char* controlFile);
 }

@@ -1,18 +1,15 @@
 #pragma once
-#include "ThreadSafe.h"
+#include "WatchedFile.h"
 namespace CharacterControlCore
 {
-	class WatchedJson
+	class WatchedJson final : public WatchedFile<json>
 	{
 	public:
-		WatchedJson(std::filesystem::path filename);
-		bool Update();
-
-		std::optional<json> Get();
-		const std::filesystem::path& GetPath() const;
-
+		WatchedJson( std::filesystem::path filename ) : WatchedFile<json>( filename )	
+		{
+			Update();
+		}
 	private:
-		std::filesystem::path m_filename;
-		std::filesystem::file_time_type m_lastChangedTime;
+		bool UpdateInternal() override;
 	};
 }

@@ -36,6 +36,11 @@ namespace CharacterControlCore
 			return nullptr;
 		}
 
+		const std::unordered_map<std::string, ImageResource>& GetRawResources() const
+		{
+			return m_resources;
+		}
+
 	private:
 		std::unordered_map<std::string, ImageResource> m_resources;
 

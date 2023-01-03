@@ -41,7 +41,7 @@ CharacterControlCore::Character::Character(std::filesystem::path filename):
 void CharacterControlCore::Character::Parse()
 {
 	auto characterJson = m_characterJson.Get();
-	if (characterJson.has_value())
+	if (characterJson != nullptr)
 	{
 		auto attributesJson = characterJson->find("Attributes");
 		if (attributesJson != characterJson->end())

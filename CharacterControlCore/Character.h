@@ -8,6 +8,7 @@ namespace CharacterControlCore
 	class Character
 	{
 	public:
+		Character( std::filesystem::path filename );
 		void Update();
 
 		const Attributes& GetAttributes() const;
@@ -15,8 +16,6 @@ namespace CharacterControlCore
 		const VisualLayer& GetVisualLayerRoot() const;
 		const ImageResources& GetImageResources() const;
 	private:
-		friend class CharacterCreator;
-		Character(std::filesystem::path filename);
 		WatchedJson m_characterJson;
 		Attributes m_attributes;
 		VisualLayer m_visualLayerRoot;

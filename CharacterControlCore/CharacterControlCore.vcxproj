@@ -152,7 +152,6 @@
     <ClInclude Include="Attributes.h" />
     <ClInclude Include="Character.h" />
     <ClInclude Include="CharacterControl.h" />
-    <ClInclude Include="CharacterCreator.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="CharacterMap.h" />
     <ClInclude Include="Condition.h" />
@@ -162,13 +161,13 @@
     <ClInclude Include="ThreadSafe.h" />
     <ClInclude Include="PCH.h" />
     <ClInclude Include="VisualLayer.h" />
+    <ClInclude Include="WatchedFile.h" />
     <ClInclude Include="WatchedJson.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Attributes.cpp" />
     <ClCompile Include="Character.cpp" />
     <ClCompile Include="CharacterControl.cpp" />
-    <ClCompile Include="CharacterCreator.cpp" />
     <ClCompile Include="Component.cpp" />
     <ClCompile Include="Condition.cpp" />
     <ClCompile Include="DiscordComponent.cpp" />

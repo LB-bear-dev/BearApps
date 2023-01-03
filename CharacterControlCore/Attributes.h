@@ -36,33 +36,25 @@ namespace CharacterControlCore
 	template<>
 	inline void Attributes::CreateAttribute(const std::string& key, bool defaultValue)
 	{
-		auto& attribute = m_attributesBool[key];
-		attribute.value = defaultValue;
-		attribute.defaultValue = defaultValue;
+		m_attributesBool.emplace( key, Attribute{ defaultValue, defaultValue } );
 	}
 
 	template<>
 	inline void Attributes::CreateAttribute(const std::string& key, int defaultValue)
 	{
-		auto& attribute = m_attributesInt[key];
-		attribute.value = defaultValue;
-		attribute.defaultValue = defaultValue;
+		m_attributesInt.emplace( key, Attribute{ defaultValue, defaultValue } );
 	}
 
 	template<>
 	inline void Attributes::CreateAttribute(const std::string& key, float defaultValue)
 	{
-		auto& attribute = m_attributesFloat[key];
-		attribute.value = defaultValue;
-		attribute.defaultValue = defaultValue;
+		m_attributesFloat.emplace( key, Attribute{ defaultValue, defaultValue } );
 	}
 
 	template<>
 	inline void Attributes::CreateAttribute(const std::string& key, std::string defaultValue)
 	{
-		auto& attribute = m_attributesString[key];
-		attribute.value = defaultValue;
-		attribute.defaultValue = defaultValue;
+		m_attributesString.emplace( key, Attribute{ defaultValue, defaultValue } );
 	}
 
 	template<typename T>

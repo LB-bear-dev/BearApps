@@ -63,9 +63,6 @@
     <ClInclude Include="CharacterMap.h">
       <Filter>Header Files\CharacterControl</Filter>
     </ClInclude>
-    <ClInclude Include="CharacterCreator.h">
-      <Filter>Header Files\Character</Filter>
-    </ClInclude>
     <ClInclude Include="ThreadSafe.h">
       <Filter>Header Files\Helpers</Filter>
     </ClInclude>
@@ -87,6 +84,9 @@
     <ClInclude Include="Interface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WatchedFile.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PCH.cpp">
@@ -100,9 +100,6 @@
     </ClCompile>
     <ClCompile Include="CharacterControl.cpp">
       <Filter>Source Files\CharacterControl</Filter>
-    </ClCompile>
-    <ClCompile Include="CharacterCreator.cpp">
-      <Filter>Source Files\Character</Filter>
     </ClCompile>
     <ClCompile Include="WatchedJson.cpp">
       <Filter>Source Files\Helpers</Filter>

@@ -13,15 +13,42 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Helpers">
+      <UniqueIdentifier>{681f45ed-2b5f-4acc-bc99-ee6cf2c398d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Helpers">
+      <UniqueIdentifier>{c2fd7924-a8f4-4ab5-8739-c1d79910e2f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\CharacterInfo">
+      <UniqueIdentifier>{037b55b9-ff9a-42a0-b119-41c0ce2a47d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\CharacterInfo">
+      <UniqueIdentifier>{a9b06f12-c8c9-4a7d-8dd3-39ec72b731b7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="plugin-macros.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WatchedImage.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Messaging.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="DiscordCharacterInfo.h">
+      <Filter>Header Files\CharacterInfo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="plugin-main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WatchedImage.cpp">
+      <Filter>Source Files\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="DiscordCharacterInfo.cpp">
+      <Filter>Source Files\CharacterInfo</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

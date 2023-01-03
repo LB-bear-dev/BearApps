@@ -1,6 +1,7 @@
 #include "../DiscordBear/Interface.h"
 #include "../CharacterControlCore/Interface.h"
 #include <iostream>
+#include <thread>
 
 //int main()
 //{

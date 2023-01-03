@@ -13,7 +13,7 @@ namespace CharacterControlCore
 	class DiscordComponent : public InputComponent
 	{
 	public:
-		DiscordComponent(CharacterCreator& creator, CharacterMap& characters);
+		DiscordComponent( CharacterMap& characters, const std::filesystem::path& path );
 		~DiscordComponent();
 		void Update();
 

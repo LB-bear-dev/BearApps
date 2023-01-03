@@ -34,6 +34,7 @@ namespace DiscordBear
 	private:
 		std::unique_ptr<char[]> m_packedData;
 		unsigned long m_byteSize;
+		unsigned long m_headerSize;
 
 		//Internal use only for pipe message read
 		friend class Pipe;

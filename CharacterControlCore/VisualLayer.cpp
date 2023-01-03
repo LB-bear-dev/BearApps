@@ -1,18 +1,28 @@
 #include "PCH.h"
 #include "VisualLayer.h"
 
-
 const std::string CharacterControlCore::VisualLayerNameBuilder::Update(const Attributes& attributes) const
 {
-	for (const VisualLayerCondition& nameConditon : m_nameConditions)
+	for (const VisualLayerCondition& nameCondition : m_nameConditions)
 	{
-		if (nameConditon.m_condition.Evaluate(attributes))
+		if ( nameCondition.m_condition.Evaluate(attributes))
 		{
-			return nameConditon.m_name;
+			return nameCondition.m_name;
 		}
 	}
 
 	return "";
+}
+
+std::vector<std::string> CharacterControlCore::VisualLayerNameBuilder::GetAllNames() const
+{
+	std::vector<std::string> allNames;
+	for ( const VisualLayerCondition& nameCondition : m_nameConditions )
+	{
+		allNames.push_back( nameCondition.m_name );
+	}
+
+	return allNames;
 }
 
 void CharacterControlCore::VisualLayer::Update(const Attributes& attributes)
@@ -39,6 +49,26 @@ void CharacterControlCore::VisualLayer::Update(const Attributes& attributes)
 const std::string& CharacterControlCore::VisualLayer::GetCurrentImageName() const
 {
 	return m_name;
+}
+
+void CharacterControlCore::VisualLayer::GetAllImageNamesRecursive( std::string currentStringBuilt, int index, std::vector<std::string>& builtStrings ) const
+{
+	if ( index >= m_namePartBuilders.size()  )
+	{
+		builtStrings.push_back( currentStringBuilt );
+	}
+
+	for ( const std::string& namePart : m_namePartBuilders[index].GetAllNames() )
+	{
+		GetAllImageNamesRecursive(currentStringBuilt + ( index==0 ? "" : "_" ) + namePart, index + 1, builtStrings);
+	}
+}
+
+std::vector<std::string> CharacterControlCore::VisualLayer::GetAllImageNames() const
+{
+	std::vector<std::string> names;
+	GetAllImageNamesRecursive( "", 0, names );
+	return names;
 }
 
 void CharacterControlCore::to_json(json& nameBuilderJson, const VisualLayerNameBuilder& nameBuilder)

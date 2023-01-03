@@ -1,12 +1,16 @@
 #include "PCH.h"
 #include "DiscordComponent.h"
 #include "CharacterMap.h"
-#include "CharacterCreator.h"
 #include "../DiscordBear/Interface.h"
 #pragma optimize("", off)
 
-CharacterControlCore::DiscordComponent::DiscordComponent(CharacterCreator& creator, CharacterMap& characters):
-	m_discordClient(nullptr), InputComponent(creator, characters)
+namespace
+{
+
+}
+
+CharacterControlCore::DiscordComponent::DiscordComponent( CharacterMap& characters, const std::filesystem::path& path ):
+	m_discordClient(nullptr), InputComponent( characters, path )
 {
 	static const std::string ID = "889010164760461322";
 	static const std::string Secret = "vkfhch9vw8NNRnhVMPeQKoIb7exvCWOM";
@@ -22,16 +26,22 @@ CharacterControlCore::DiscordComponent::DiscordComponent(CharacterCreator& creat
 				m_discordClient->UnsubscribeOnVoiceChannelEnter();
 				m_discordClient->UnsubscribeOnVoiceChannelExit();
 
-				CharacterMapInstance characterMap = m_activeCharacters.GetRawContainerBlocking();
-				characterMap->clear();
+				m_activeCharacters.Clear();
 
 				for (auto& voiceUser : info.voiceUserList)
 				{
 					if (voiceUser.valid)
 					{
-						Attributes& attrs = characterMap->emplace(voiceUser.userID, m_characterCreator.GetCharacter(voiceUser.userID)).first->second.character.GetAttributesMutable();
-						attrs.CreateAttribute<std::string>("nickname", voiceUser.serverNickname);
-						attrs.CreateAttribute<std::string>("name", voiceUser.globalUsername);
+						std::hash<std::string> stringhash;
+						auto character = m_activeCharacters.CreateCharacter( stringhash( voiceUser.userID ), (m_path.parent_path() / voiceUser.userID / "characterconfig.json").string().c_str() );
+						if ( character != nullptr )
+						{
+							Attributes& attrs = character->GetAttributesMutable();
+							attrs.CreateAttribute<std::string>( "nickname", voiceUser.serverNickname );
+							attrs.CreateAttribute<std::string>( "name", voiceUser.globalUsername );
+							attrs.CreateAttribute<std::string>( "ID", voiceUser.userID );
+							attrs.CreateAttribute<bool>( "speaking", false );
+						}
 					}
 				}
 
@@ -73,8 +83,9 @@ void CharacterControlCore::DiscordComponent::Update()
 
 void CharacterControlCore::DiscordComponent::OnSpeaking(DiscordBear::SpeakingEventInfo&& speakingEvent)
 {
-	auto character = m_activeCharacters.GetCharacterMutable(speakingEvent.userID);
-	if (character.Valid())
+	std::hash<std::string> stringhash;
+	auto character = m_activeCharacters.GetCharacterMutable( stringhash(speakingEvent.userID) );
+	if (character != nullptr)
 	{
 		bool* speaking = character->GetAttributesMutable().GetAttribute<bool>("speaking");
 		if (speaking)
@@ -82,16 +93,16 @@ void CharacterControlCore::DiscordComponent::OnSpeaking(DiscordBear::SpeakingEve
 			*speaking = true;
 		}
 	}
-
 }
 
 void CharacterControlCore::DiscordComponent::OnSpeakingStop(DiscordBear::SpeakingEventInfo&& speakingEvent)
 {
-	auto character = m_activeCharacters.GetCharacterMutable(speakingEvent.userID);
-	if (character.Valid())
+	std::hash<std::string> stringhash;
+	auto character = m_activeCharacters.GetCharacterMutable( stringhash( speakingEvent.userID ) );
+	if ( character != nullptr )
 	{
-		bool* speaking = character->GetAttributesMutable().GetAttribute<bool>("speaking");
-		if (speaking)
+		bool* speaking = character->GetAttributesMutable().GetAttribute<bool>( "speaking" );
+		if ( speaking )
 		{
 			*speaking = false;
 		}
@@ -100,10 +111,21 @@ void CharacterControlCore::DiscordComponent::OnSpeakingStop(DiscordBear::Speakin
 
 void CharacterControlCore::DiscordComponent::OnUserEnter(DiscordBear::VoiceUserInfo&& voiceEnterEvent)
 {
-	if (voiceEnterEvent.valid)
+	if ( voiceEnterEvent.valid )
 	{
-		CharacterMapInstance characterMap = m_activeCharacters.GetRawContainerBlocking();
-		characterMap->emplace(voiceEnterEvent.userID, m_characterCreator.GetCharacter(voiceEnterEvent.userID));
+		std::hash<std::string> stringhash;
+		CharacterControlCore::Character* character = m_activeCharacters.CreateCharacter( 
+			stringhash( voiceEnterEvent.userID ), 
+			(m_path.parent_path() / voiceEnterEvent.userID / "characterconfig.json").string().c_str() );
+
+		if ( character != nullptr )
+		{
+			Attributes& attrs = character->GetAttributesMutable();
+			attrs.CreateAttribute<std::string>( "nickname", voiceEnterEvent.serverNickname );
+			attrs.CreateAttribute<std::string>( "name", voiceEnterEvent.globalUsername );
+			attrs.CreateAttribute<std::string>( "ID", voiceEnterEvent.userID );
+			attrs.CreateAttribute<bool>( "speaking", false );
+		}
 	}
 }
 
@@ -111,7 +133,7 @@ void CharacterControlCore::DiscordComponent::OnUserExit(DiscordBear::VoiceUserIn
 {
 	if (voiceExitEvent.valid)
 	{
-		CharacterMapInstance characterMap = m_activeCharacters.GetRawContainerBlocking();
-		characterMap->erase(voiceExitEvent.userID);
+		std::hash<std::string> stringhash;
+		m_activeCharacters.RemoveCharacter( stringhash( voiceExitEvent.userID ) );
 	}
 }

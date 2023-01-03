@@ -3,70 +3,92 @@
 #include "Character.h"
 #include "DiscordComponent.h"
 
-CharacterControlCore::CharacterControl::CharacterControl(std::string& filename):
-	m_characterCreator(filename)
+CharacterControlCore::CharacterControl::CharacterControl( const char* filename):
+	m_root( filename )
 {
-	std::unique_ptr<InputComponent> discordPtr(new DiscordComponent(m_characterCreator, m_activeCharacters));
-	m_components.push_back(std::move(discordPtr));
+	m_components.push_back( std::unique_ptr<InputComponent>( new DiscordComponent( m_activeCharacters, m_root.GetPath() ) ) );
 }
 
 void CharacterControlCore::CharacterControl::Update()
 {
-	m_characterCreator.Update();
-
 	for (auto& component : m_components)
 	{
 		component->Update();
 	}
 
-	for (const std::string& updatingCharacter : m_activeCharacters.GetUpdatedCharacters())
+	for (size_t updatingCharacter : m_activeCharacters.GetUpdatedCharacters())
 	{
-		CharacterMapElementInstanceMutable element = m_activeCharacters.GetCharacterMutable(updatingCharacter);
-		if (element.Valid())
+		Character* element = m_activeCharacters.GetCharacterMutable(updatingCharacter);
+		if (element != nullptr)
 		{
 			element->Update();
 
-			UpdateCharacterInfo(updatingCharacter, element);
+			UpdateCharacterInfo(updatingCharacter, *element);
 		}
 	}
 }
 
-const std::filesystem::path& CharacterControlCore::CharacterControl::GetContentRoot()
+const CharacterControlCore::CharacterInfo* CharacterControlCore::CharacterControl::GetCharacter( size_t m_ID ) const
 {
-	return m_characterCreator.GetPath();
+	auto foundCharacter = m_characterList.find( m_ID );
+	if ( foundCharacter != m_characterList.end() )
+	{
+		return &foundCharacter->second;
+	}
+
+	return nullptr;
 }
 
-const CharacterControlCore::CharacterInfoList& CharacterControlCore::CharacterControl::GetCharacterList()
+void CharacterControlCore::CharacterControl::UpdateCharacterInfo( size_t characterID, Character& element )
 {
-	return m_characterList;
+	auto character = m_characterList.try_emplace( characterID, m_root.GetPath().parent_path(), element );
+
+	const ImageResource* image = element.GetImageResources().GetResource( element.GetVisualLayerRoot().GetCurrentImageName() );
+
+	auto IDName = element.GetAttributes().GetAttribute<std::string>( "ID" );
+	if ( image != nullptr && IDName != nullptr )
+	{
+		std::filesystem::path path = m_root.GetPath().parent_path() / *IDName / image->GetFilename();
+
+		character.first->second.m_imageStack.clear();
+		character.first->second.m_imageStack.emplace_back ( path.string() );
+	}
 }
 
-void CharacterControlCore::CharacterControl::UpdateCharacterInfo(const std::string& characterID, CharacterMapElementInstanceMutable& element)
+CharacterControlCore::CharacterInfoInternal::CharacterInfoInternal( const std::filesystem::path& rootPath, const Character& element )
 {
-	auto character = std::find_if(m_characterList.begin(), m_characterList.end(), [&characterID](const CharacterInfo& lhs) { return lhs.ID == characterID; });
-	if (character == m_characterList.end())
+	auto nickname = element.GetAttributes().GetAttribute<std::string>( "nickname" );
+	if ( nickname != nullptr )
 	{
-		m_characterList.resize(m_characterList.size()+1);
-		character = m_characterList.end();
-		character--;
+		m_name = *nickname;
 	}
 
-	character->ID = characterID;
-	auto nickname = element->GetAttributes().GetAttribute<std::string>("nickname");
-	if (nickname != nullptr)
+	m_imageLibrary.clear();
+
+	auto IDName = element.GetAttributes().GetAttribute<std::string>( "ID" );
+	if ( IDName != nullptr )
 	{
-		character->name = *nickname;
+		for ( auto& imageResource : element.GetImageResources().GetRawResources() )
+		{
+			std::filesystem::path path = rootPath / *IDName / imageResource.second.GetFilename();
+			m_imageLibrary.emplace_back( path.string() );
+		}
 	}
 
-	const ImageResource* image = element->GetImageResources().GetResource( element->GetVisualLayerRoot().GetCurrentImageName() );
+	m_imageStack.clear();
+}
 
-	if ( image != nullptr )
-	{
-		std::filesystem::path path = m_characterCreator.GetPath ().parent_path ();
-		path /= characterID;
-		path /= image->GetFilename();
+const char* CharacterControlCore::CharacterInfoInternal::Name() const
+{
+	return m_name.c_str();
+}
 
-		character->imageInfos.clear ();
-		character->imageInfos.emplace_back ( path.string ().c_str () );
-	}
+const CharacterControlCore::ImageInfoList& CharacterControlCore::CharacterInfoInternal::CurrentImageStack() const
+{
+	return m_imageStack;
+}
+
+const CharacterControlCore::ImageInfoList& CharacterControlCore::CharacterInfoInternal::ImageLibrary() const
+{
+	return m_imageLibrary;
 }

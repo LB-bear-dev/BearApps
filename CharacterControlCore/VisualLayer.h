@@ -17,6 +17,8 @@ namespace CharacterControlCore
 	{
 	public:
 		const std::string Update(const Attributes& attributes) const;
+		std::vector<std::string> GetAllNames() const;
+
 	private:
 		std::vector<VisualLayerCondition> m_nameConditions;
 
@@ -30,7 +32,9 @@ namespace CharacterControlCore
 	public:
 		void Update(const Attributes& attributes);
 		const std::string& GetCurrentImageName() const;
+		std::vector<std::string> GetAllImageNames() const;
 	private:
+		void GetAllImageNamesRecursive( std::string currentStringBuilt, int index, std::vector<std::string>& builtStrings ) const;
 		std::string m_name;
 		std::unordered_map<std::string, VisualLayer> m_childLayers;
 		std::vector<VisualLayerNameBuilder> m_namePartBuilders;
