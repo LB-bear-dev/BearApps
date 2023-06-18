@@ -17,6 +17,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestCore", "TestCore\TestCo
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CharacterControlOBS", "CharacterControlOBS\CharacterControlOBS.vcxproj", "{3C349A86-4409-4B3D-8E58-957DDA5D9994}"
+	ProjectSection(ProjectDependencies) = postProject
+		{41006BB7-480B-45E1-A601-A6E30928F280} = {41006BB7-480B-45E1-A601-A6E30928F280}
+		{BFCA101D-EF22-486E-AE76-D91C884718BB} = {BFCA101D-EF22-486E-AE76-D91C884718BB}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
