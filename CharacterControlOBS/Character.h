@@ -27,7 +27,7 @@ namespace CharacterControlOBS
 
 		void AddComponent(std::unique_ptr<Component>&& component);
 
-		void DeclareAttributes();
+		void SetupImageControlScript(const std::filesystem::path& filename);
 
 		void UpdateAttributes();
 
@@ -45,6 +45,6 @@ namespace CharacterControlOBS
 
 		CharacterControlRender::ImageLayer m_imageRoot;
 
-		//CharacterControlScript::WatchedPythonScript m_imageControlScript;
+		std::unique_ptr<CharacterControlScript::WatchedPythonScript> m_imageControlScript;
 	};
 }

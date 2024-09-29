@@ -39,7 +39,6 @@ namespace
 		if (Character* character = ActiveCharacters::Get().GetActiveCharacter(namedCharacterInfo->name))
 		{
 			character->AddComponent(std::make_unique<DiscordComponent>(DiscordComponent(namedCharacterInfo->ID)));
-			character->DeclareAttributes();
 			if (ImageLayer* defaultLayer = character->GetImageRoot().GetLayerByName("default"))
 			{
 				defaultLayer->CreateSlot("SpeakingState");

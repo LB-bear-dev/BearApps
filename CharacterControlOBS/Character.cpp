@@ -3,6 +3,7 @@
 #include "Messaging.h"
 #include "WatchedImage.h"
 #include "PythonInterface.h"
+#include "WatchedPythonScript.h"
 
 #pragma optimize("", off)
 
@@ -18,12 +19,9 @@ void CharacterControlOBS::Character::AddComponent(std::unique_ptr<Component>&& c
 	m_components.emplace_back(std::move(component))->DeclareAttributes(m_intAttributes);
 }
 
-void CharacterControlOBS::Character::DeclareAttributes()
+void CharacterControlOBS::Character::SetupImageControlScript(const std::filesystem::path& filename)
 {
-	for (auto& component : m_components)
-	{
-		component->DeclareAttributes(m_intAttributes);
-	}
+	m_imageControlScript = std::make_unique<CharacterControlScript::WatchedPythonScript>(filename);
 }
 
 void CharacterControlOBS::Character::UpdateAttributes()
@@ -36,40 +34,29 @@ void CharacterControlOBS::Character::UpdateAttributes()
 
 void CharacterControlOBS::Character::UpdateRenderState()
 {
-	//CharacterControlScript::PythonInterface::Get();
-	//m_imageControlScript.Update();
+	if (m_imageControlScript)
+	{
+		CharacterControlScript::PythonInterface::Get();
+		m_imageControlScript->Update();
 
-	//PyObject* pArgs = PyTuple_New(1);
-	//PyObject* pDict = PyDict_New();
-	//if (pDict != nullptr && !Py_IsNone(pDict))
-	//{
-	//	for (auto& intAttribute : m_intAttributes)
-	//	{
-	//		if (intAttribute.second != nullptr)
-	//		{
-	//			PyObject* pVal = PyLong_FromLong(intAttribute.second->GetValue());
-	//			if (pVal != nullptr && !Py_IsNone(pVal))
-	//			{
-	//				PyDict_SetItemString(pDict, intAttribute.first.c_str(), pVal);
-	//			}
-	//		}
-	//	}
-	//}
-	//PyTuple_SetItem(pArgs, 0, pDict);
-
-	//if (PyObject* nameObj = m_imageControlScript.Call("Update", pArgs))
-	//{
-	//	const char* name = PyUnicode_AsUTF8(nameObj);
-
-	//	for (auto& image : m_imageLibraries)
-	//	{
-	//		if (image != nullptr)
-	//		{
-	//			image->Update();
-	//		}
-	//	}
-	//}
-	
+		PyObject* pArgs = PyTuple_New(1);
+		PyObject* pDict = PyDict_New();
+		if (pDict != nullptr && !Py_IsNone(pDict))
+		{
+			for (auto& intAttribute : m_intAttributes)
+			{
+				if (intAttribute.second != nullptr)
+				{
+					PyObject* pVal = PyLong_FromLong(intAttribute.second->GetValue());
+					if (pVal != nullptr && !Py_IsNone(pVal))
+					{
+						PyDict_SetItemString(pDict, intAttribute.first.c_str(), pVal);
+					}
+				}
+			}
+		}
+		PyTuple_SetItem(pArgs, 0, pDict);
+	}	
 }
 
 const Attribute<int>* CharacterControlOBS::Character::GetIntAttribute(STRIDR attrName) const

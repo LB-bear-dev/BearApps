@@ -125,6 +125,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="plugin-main.cpp" />
+    <ClCompile Include="ScriptedCharacter.cpp" />
     <ClCompile Include="SimpleCharacter.cpp" />
     <ClCompile Include="WatchedPythonScript.cpp" />
     <ClCompile Include="WatchedImage.cpp" />
