@@ -1,7 +1,6 @@
 #include "PCH.h"
 #include "Message.h"
 
-#pragma optimize("", off)
 
 namespace DiscordBear
 {

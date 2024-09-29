@@ -8,19 +8,8 @@ namespace
 void CharacterControlCore::Character::Update()
 {
 	m_characterJson.Update();
-	m_visualLayerRoot.Update(m_attributes);
 }
 
-const CharacterControlCore::Attributes& CharacterControlCore::Character::GetAttributes() const
-{
-	return m_attributes;
-
-}
-
-CharacterControlCore::Attributes& CharacterControlCore::Character::GetAttributesMutable()
-{
-	return m_attributes;
-}
 
 const CharacterControlCore::VisualLayer& CharacterControlCore::Character::GetVisualLayerRoot() const
 {
@@ -46,7 +35,6 @@ void CharacterControlCore::Character::Parse()
 		auto attributesJson = characterJson->find("Attributes");
 		if (attributesJson != characterJson->end())
 		{
-			m_attributes = attributesJson->get<Attributes>();
 		}
 
 		auto imageResourcesJson = characterJson->find("ImageResources");

@@ -40,12 +40,12 @@ namespace DiscordBear
 		Pipe m_pipe;
 		const std::string m_appID;
 		const std::string m_appSecret;
+		std::atomic<bool> m_finishUpdating;
 
 		concurrency::task<void> m_asyncUpdateTask;
 
 		concurrency::reader_writer_lock m_nonceToSelectedVoiceChannelResponsesDeleteLock;
 		concurrency::concurrent_unordered_map<std::string, std::function<void(VoiceChannelInfo&&)>> m_nonceToSelectedVoiceChannelResponses;
-
 
 		concurrency::reader_writer_lock m_voiceChannelJoinEventCreateLock;
 		std::function<void(GenericChannelInfo&&)> m_voiceChannelJoinEvent;

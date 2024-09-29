@@ -5,11 +5,11 @@
 #include "Message.h"
 #include "Register.h"
 
-#pragma optimize("", off)
-
 using namespace DiscordBear;
 
-DiscordBear::Client::Client(const std::string& appID, const std::string& appSecret) : m_appID(appID), m_appSecret(appSecret), m_asyncUpdateTask([]() {}) {}
+DiscordBear::Client::Client(const std::string& appID, const std::string& appSecret) : m_appID(appID), m_appSecret(appSecret), 
+m_asyncUpdateTask([]() {}), m_finishUpdating(false)
+{}
 
 DiscordBear::Client::~Client()
 {
@@ -188,7 +188,7 @@ void DiscordBear::Client::Disconnect()
 {
 	LOG(LogSeverity::Info) << "Disconnecting discord client";
 
-	m_asyncUpdateTask.wait();
+	m_finishUpdating = true;
 
 	m_pipe.Disconnect();
 }
@@ -733,5 +733,16 @@ void DiscordBear::Client::Update()
 
 void DiscordBear::Client::UpdateAsync()
 {
-	Update ();
+	if (m_asyncUpdateTask.is_done())
+	{
+		m_asyncUpdateTask = concurrency::task<void>(
+			[this]()
+			{
+				while (!m_finishUpdating)
+				{
+					Update();
+					Sleep(33);
+				}
+			});
+	}
 }

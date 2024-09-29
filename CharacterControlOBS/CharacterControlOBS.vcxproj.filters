@@ -16,28 +16,79 @@
     <Filter Include="Header Files\Helpers">
       <UniqueIdentifier>{681f45ed-2b5f-4acc-bc99-ee6cf2c398d8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Helpers">
-      <UniqueIdentifier>{c2fd7924-a8f4-4ab5-8739-c1d79910e2f3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\CharacterInfo">
       <UniqueIdentifier>{037b55b9-ff9a-42a0-b119-41c0ce2a47d7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\CharacterInfo">
       <UniqueIdentifier>{a9b06f12-c8c9-4a7d-8dd3-39ec72b731b7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render">
+      <UniqueIdentifier>{22932ad7-6656-42fd-8e98-2071c2264dd4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render">
+      <UniqueIdentifier>{c2fd7924-a8f4-4ab5-8739-c1d79910e2f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Sources">
+      <UniqueIdentifier>{681b68a6-b607-4501-a057-d242cf32eacf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Sources">
+      <UniqueIdentifier>{4b3fdb97-b9d4-4612-940d-42454f6ea812}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Components">
+      <UniqueIdentifier>{e5ba4ad9-4967-452b-a9b9-7410f8e317e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Components">
+      <UniqueIdentifier>{02e879db-6847-4f89-9d27-a931091946fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Script">
+      <UniqueIdentifier>{6290c486-e7d9-4a68-be2a-5a46de084980}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Script">
+      <UniqueIdentifier>{7961e9ae-b0ce-4a12-a914-c33a5189242d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="plugin-macros.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="WatchedImage.h">
-      <Filter>Header Files\Helpers</Filter>
-    </ClInclude>
     <ClInclude Include="Messaging.h">
       <Filter>Header Files\Helpers</Filter>
     </ClInclude>
-    <ClInclude Include="DiscordCharacterInfo.h">
+    <ClInclude Include="WatchedImage.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="CreateSingleLayeredImageFromImageFile.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageLayer.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Character.h">
       <Filter>Header Files\CharacterInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="Coord.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="WatchedImageLibrary.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ActiveCharacters.h">
+      <Filter>Header Files\CharacterInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="Attribute.h">
+      <Filter>Header Files\CharacterInfo</Filter>
+    </ClInclude>
+    <ClInclude Include="DiscordComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="PythonInterface.h">
+      <Filter>Header Files\Script</Filter>
+    </ClInclude>
+    <ClInclude Include="WatchedPythonScript.h">
+      <Filter>Header Files\Script</Filter>
+    </ClInclude>
+    <ClInclude Include="PCH.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -45,10 +96,28 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="WatchedImage.cpp">
-      <Filter>Source Files\Helpers</Filter>
+      <Filter>Source Files\Render</Filter>
     </ClCompile>
-    <ClCompile Include="DiscordCharacterInfo.cpp">
+    <ClCompile Include="Character.cpp">
       <Filter>Source Files\CharacterInfo</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageLayer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="ActiveCharacters.cpp">
+      <Filter>Source Files\CharacterInfo</Filter>
+    </ClCompile>
+    <ClCompile Include="DiscordComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="WatchedPythonScript.cpp">
+      <Filter>Source Files\Script</Filter>
+    </ClCompile>
+    <ClCompile Include="PCH.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SimpleCharacter.cpp">
+      <Filter>Source Files\Sources</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

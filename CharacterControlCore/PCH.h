@@ -14,3 +14,5 @@
 #include <concurrent_vector.h>
 
 using json = nlohmann::json;
+
+#define STR(string) = std::string("str")

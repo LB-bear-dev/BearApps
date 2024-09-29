@@ -5,6 +5,10 @@
     <OBSPATH>C:\Users\chris\source\repos\obs\build64</OBSPATH>
     <OBSEXE>$(OBSPATH)\rundir\RelWithDebInfo\bin\64bit\</OBSEXE>
     <OBSPLUGINS>$(OBSPATH)\rundir\RelWithDebInfo\obs-plugins\64bit</OBSPLUGINS>
+    <PSDDIR>C:\Users\chris\source\repos\psd_sdk\</PSDDIR>
+    <PSDSDKBUILDDIR>$(PSDDIR)\build\VS2019\x64\Release</PSDSDKBUILDDIR>
+    <QTPATH>C:\Users\chris\source\repos\obs-build-dependencies\windows-deps-2023-04-12-x64</QTPATH>
+    <PYTHONPATH>C:\Users\chris\AppData\Local\Programs\Python\Python311</PYTHONPATH>
   </PropertyGroup>
   <PropertyGroup>
     <CustomBuildAfterTargets>
@@ -22,6 +26,9 @@
 xcopy $(SolutionDir)$(Platform)\$(Configuration)\*.pdb $(OBSPLUGINS)\ /y /d 
 xcopy $(SolutionDir)packages\cpprestsdk.v142.2.10.15\build\native\x64\bin\cpprest142_2_10.dll $(OBSPLUGINS)\ /y</Command>
     </PostBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(QTPATH)</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="OBSPATH">
@@ -34,6 +41,22 @@ xcopy $(SolutionDir)packages\cpprestsdk.v142.2.10.15\build\native\x64\bin\cppres
     </BuildMacro>
     <BuildMacro Include="OBSPLUGINS">
       <Value>$(OBSPLUGINS)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PSDDIR">
+      <Value>$(PSDDIR)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PSDSDKBUILDDIR">
+      <Value>$(PSDSDKBUILDDIR)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="QTPATH">
+      <Value>$(QTPATH)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="PYTHONPATH">
+      <Value>$(PYTHONPATH)</Value>
       <EnvironmentVariable>true</EnvironmentVariable>
     </BuildMacro>
   </ItemGroup>

@@ -1,6 +1,5 @@
 #pragma once
 #include "WatchedJson.h"
-#include "Attributes.h"
 #include "ImageResource.h"
 #include "VisualLayer.h"
 namespace CharacterControlCore
@@ -17,7 +16,6 @@ namespace CharacterControlCore
 		const ImageResources& GetImageResources() const;
 	private:
 		WatchedJson m_characterJson;
-		Attributes m_attributes;
 		VisualLayer m_visualLayerRoot;
 		ImageResources m_imageResources;
 

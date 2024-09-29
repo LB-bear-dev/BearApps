@@ -45,35 +45,35 @@ void CharacterControlCore::CharacterControl::UpdateCharacterInfo( size_t charact
 
 	const ImageResource* image = element.GetImageResources().GetResource( element.GetVisualLayerRoot().GetCurrentImageName() );
 
-	auto IDName = element.GetAttributes().GetAttribute<std::string>( "ID" );
-	if ( image != nullptr && IDName != nullptr )
-	{
-		std::filesystem::path path = m_root.GetPath().parent_path() / *IDName / image->GetFilename();
+	//auto IDName = element.GetAttributes().GetAttribute<std::string>( "ID" );
+	//if ( image != nullptr && IDName != nullptr )
+	//{
+	//	std::filesystem::path path = m_root.GetPath().parent_path() / *IDName / image->GetFilename();
 
-		character.first->second.m_imageStack.clear();
-		character.first->second.m_imageStack.emplace_back ( path.string() );
-	}
+	//	character.first->second.m_imageStack.clear();
+	//	character.first->second.m_imageStack.emplace_back ( path.string() );
+	//}
 }
 
 CharacterControlCore::CharacterInfoInternal::CharacterInfoInternal( const std::filesystem::path& rootPath, const Character& element )
 {
-	auto nickname = element.GetAttributes().GetAttribute<std::string>( "nickname" );
-	if ( nickname != nullptr )
-	{
-		m_name = *nickname;
-	}
+	//auto nickname = element.GetAttributes().GetAttribute<std::string>( "nickname" );
+	//if ( nickname != nullptr )
+	//{
+	//	m_name = *nickname;
+	//}
 
-	m_imageLibrary.clear();
+	//m_imageLibrary.clear();
 
-	auto IDName = element.GetAttributes().GetAttribute<std::string>( "ID" );
-	if ( IDName != nullptr )
-	{
-		for ( auto& imageResource : element.GetImageResources().GetRawResources() )
-		{
-			std::filesystem::path path = rootPath / *IDName / imageResource.second.GetFilename();
-			m_imageLibrary.emplace_back( path.string() );
-		}
-	}
+	//auto IDName = element.GetAttributes().GetAttribute<std::string>( "ID" );
+	//if ( IDName != nullptr )
+	//{
+	//	for ( auto& imageResource : element.GetImageResources().GetRawResources() )
+	//	{
+	//		std::filesystem::path path = rootPath / *IDName / imageResource.second.GetFilename();
+	//		m_imageLibrary.emplace_back( path.string() );
+	//	}
+	//}
 
 	m_imageStack.clear();
 }

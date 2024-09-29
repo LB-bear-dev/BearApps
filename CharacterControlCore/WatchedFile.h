@@ -2,35 +2,28 @@
 #include "ThreadSafe.h"
 #include <filesystem>
 
-#pragma optimize("", off)
+using namespace std::chrono_literals;
 namespace CharacterControlCore
 {
 	template <typename T>
 	class WatchedFile
 	{
 	public:
-		WatchedFile( std::filesystem::path filename ): m_filename( filename ), m_lastChangedTime(), m_updateInterval()
+		WatchedFile( const std::filesystem::path& filename ): m_filename( filename ), m_lastChangedTime(), m_updateInterval(10s), m_lastUpdate(std::chrono::system_clock::duration::zero())
 		{
 		}
 
 		WatchedFile( const WatchedFile& ) = delete;
 		WatchedFile& operator=( const WatchedFile& ) = delete;
 
-		WatchedFile( const WatchedFile&& rhs ):
-			m_filename( std::move( rhs.m_filename ) ),
-			m_lastChangedTime( std::move( rhs.m_lastChangedTime ) ),
-			m_updateInterval( std::move( rhs.m_updateInterval ) )
+		WatchedFile(WatchedFile&& rhs) :
+			m_filename(std::move(rhs.m_filename)),
+			m_lastChangedTime(std::move(rhs.m_lastChangedTime)),
+			m_updateInterval(std::move(rhs.m_updateInterval))
 		{
-
+			m_file = std::move(rhs.m_file);
 		}
 
-		//WatchedFile& operator=( const WatchedFile&& rhs )			
-		//{
-		//	m_filename( std::move( rhs.m_filename ) );
-		//	m_lastChangedTime( std::move( rhs.m_lastChangedTime ) );
-		//	m_updateInterval( std::move( rhs.m_updateInterval ) );
-		//	m_file( std::forward<std::unique_ptr<T>>( rhs.m_file ) );
-		//}
 		~WatchedFile() 
 		{
 			DisposeInternal();
@@ -38,17 +31,28 @@ namespace CharacterControlCore
 
 		bool Update()
 		{
-			auto duration = std::filesystem::last_write_time( m_filename ) - m_lastChangedTime;
-			if ( std::filesystem::exists( m_filename ) && (duration > m_updateInterval) )
+			if (std::chrono::system_clock::now() - m_lastUpdate <= m_updateInterval)
 			{
-				DisposeInternal();
-				m_file = std::make_unique<T>();
-				if ( !UpdateInternal() )
-				{
-					m_file = nullptr;
-				}
-				m_lastChangedTime = std::filesystem::last_write_time( m_filename );
 				return true;
+			}
+
+			m_lastUpdate = std::chrono::system_clock::now();
+
+			if ( std::filesystem::exists( m_filename ) )
+			{
+				auto duration = std::filesystem::last_write_time(m_filename) - m_lastChangedTime;
+				if (duration > std::chrono::system_clock::duration::zero())
+				{
+					DisposeInternal();
+					m_file = std::make_unique<T>();
+					if (!UpdateInternal())
+					{
+						m_file = nullptr;
+						return false;
+					}
+					m_lastChangedTime = std::filesystem::last_write_time(m_filename);
+					return true;
+				}
 			}
 
 			return false;
@@ -80,7 +84,8 @@ namespace CharacterControlCore
 	private:
 		std::filesystem::path m_filename;
 		std::filesystem::file_time_type m_lastChangedTime;
-		std::filesystem::file_time_type::duration m_updateInterval;
+		std::chrono::system_clock::time_point m_lastUpdate;
+		std::chrono::system_clock::duration m_updateInterval;
 		std::unique_ptr<T> m_file;
 	};
 }

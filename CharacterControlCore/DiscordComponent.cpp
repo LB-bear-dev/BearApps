@@ -36,11 +36,11 @@ CharacterControlCore::DiscordComponent::DiscordComponent( CharacterMap& characte
 						auto character = m_activeCharacters.CreateCharacter( stringhash( voiceUser.userID ), (m_path.parent_path() / voiceUser.userID / "characterconfig.json").string().c_str() );
 						if ( character != nullptr )
 						{
-							Attributes& attrs = character->GetAttributesMutable();
-							attrs.CreateAttribute<std::string>( "nickname", voiceUser.serverNickname );
-							attrs.CreateAttribute<std::string>( "name", voiceUser.globalUsername );
-							attrs.CreateAttribute<std::string>( "ID", voiceUser.userID );
-							attrs.CreateAttribute<bool>( "speaking", false );
+							//Attributes& attrs = character->GetAttributesMutable();
+							//attrs.CreateAttribute<std::string>( "nickname", voiceUser.serverNickname );
+							//attrs.CreateAttribute<std::string>( "name", voiceUser.globalUsername );
+							//attrs.CreateAttribute<std::string>( "ID", voiceUser.userID );
+							//attrs.CreateAttribute<bool>( "speaking", false );
 						}
 					}
 				}
@@ -87,11 +87,11 @@ void CharacterControlCore::DiscordComponent::OnSpeaking(DiscordBear::SpeakingEve
 	auto character = m_activeCharacters.GetCharacterMutable( stringhash(speakingEvent.userID) );
 	if (character != nullptr)
 	{
-		bool* speaking = character->GetAttributesMutable().GetAttribute<bool>("speaking");
-		if (speaking)
-		{
-			*speaking = true;
-		}
+		//bool* speaking = character->GetAttributesMutable().GetAttribute<bool>("speaking");
+		//if (speaking)
+		//{
+		//	*speaking = true;
+		//}
 	}
 }
 
@@ -101,11 +101,11 @@ void CharacterControlCore::DiscordComponent::OnSpeakingStop(DiscordBear::Speakin
 	auto character = m_activeCharacters.GetCharacterMutable( stringhash( speakingEvent.userID ) );
 	if ( character != nullptr )
 	{
-		bool* speaking = character->GetAttributesMutable().GetAttribute<bool>( "speaking" );
-		if ( speaking )
-		{
-			*speaking = false;
-		}
+		//bool* speaking = character->GetAttributesMutable().GetAttribute<bool>( "speaking" );
+		//if ( speaking )
+		//{
+		//	*speaking = false;
+		//}
 	}
 }
 
@@ -120,11 +120,11 @@ void CharacterControlCore::DiscordComponent::OnUserEnter(DiscordBear::VoiceUserI
 
 		if ( character != nullptr )
 		{
-			Attributes& attrs = character->GetAttributesMutable();
-			attrs.CreateAttribute<std::string>( "nickname", voiceEnterEvent.serverNickname );
-			attrs.CreateAttribute<std::string>( "name", voiceEnterEvent.globalUsername );
-			attrs.CreateAttribute<std::string>( "ID", voiceEnterEvent.userID );
-			attrs.CreateAttribute<bool>( "speaking", false );
+			//Attributes& attrs = character->GetAttributesMutable();
+			//attrs.CreateAttribute<std::string>( "nickname", voiceEnterEvent.serverNickname );
+			//attrs.CreateAttribute<std::string>( "name", voiceEnterEvent.globalUsername );
+			//attrs.CreateAttribute<std::string>( "ID", voiceEnterEvent.userID );
+			//attrs.CreateAttribute<bool>( "speaking", false );
 		}
 	}
 }
