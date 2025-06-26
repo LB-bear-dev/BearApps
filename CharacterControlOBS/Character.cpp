@@ -11,7 +11,7 @@ using namespace CharacterControlOBS;
 
 CharacterControlOBS::Character::Character(STRIDR characterName)
 {
-	m_imageRoot.CreateChildLayer("default", { 0, 0 });
+	m_imageRoot.CreateChildLayer("default");
 }
 
 void CharacterControlOBS::Character::AddComponent(std::unique_ptr<Component>&& component)

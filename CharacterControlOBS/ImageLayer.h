@@ -10,7 +10,7 @@ namespace CharacterControlRender
 	public:
 		ImageLayer();
 
-		void CreateChildLayer(STRIDR layerName, Coord parentOffset);
+		void CreateChildLayer(STRIDR layerName);
 		void CreateSlot(STRIDR slot);
 
 		void AddImageLibraryToLayer(PATHR name);
@@ -26,6 +26,15 @@ namespace CharacterControlRender
 		Coord GetMaxResolution() const;
 
 		void SetSlot(STRIDR slot, STRIDR name);
+
+		const Coord& GetTranslation() const;
+		void SetTranslation(const Coord& translation);
+
+		const Coord& GetScale() const;
+		void SetScale(const Coord& scale);
+
+		float GetRotation() const;
+		void SetRotation(float rotation);
 
 	private:
 		const ImageLayer* GetNextActiveChildLayer(uint32_t& startIndex) const;
@@ -43,7 +52,10 @@ namespace CharacterControlRender
 		STRID m_activeImageName;
 
 		bool m_active;
-		Coord m_parentOffset;
+
+		Coord m_translation;
+		Coord m_scale;
+		float m_rotation;
 
 		CharacterImageLibrary m_imageLibraries;
 		std::vector<ImageLayer> m_childLayersByZOrder;

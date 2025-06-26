@@ -55,6 +55,12 @@ namespace
 				return false;
 			}
 		}
+		else
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	std::string GetLayerName(const psd::Layer& layer)
@@ -207,8 +213,8 @@ bool CharacterControlRender::WatchedFileImageLibrary::UpdateInternal()
 				if (image.second != nullptr)
 				{
 					m_imageNames.push_back(image.first);
-					m_maxResolution.X = std::max(m_maxResolution.X, (int)image.second->image3.image2.image.cx);
-					m_maxResolution.Y = std::max(m_maxResolution.Y, (int)image.second->image3.image2.image.cx);
+					m_maxResolution.X = std::max(m_maxResolution.X, (float)image.second->image3.image2.image.cx);
+					m_maxResolution.Y = std::max(m_maxResolution.Y, (float)image.second->image3.image2.image.cx);
 				}
 			}
 		}

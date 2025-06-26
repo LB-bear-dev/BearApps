@@ -1,6 +1,9 @@
 #include "PCH.h"
 #include "DiscordComponent.h"
 #include "../DiscordBear/Interface.h"
+#include <iostream>
+
+#pragma optimize("", off)
 
 namespace
 {
@@ -47,6 +50,10 @@ namespace
 			static const std::string Secret = "vkfhch9vw8NNRnhVMPeQKoIb7exvCWOM";
 
 			m_discordClient = DiscordBear::GetDiscordClient(ID, Secret);
+			blog(LOG_WARNING, "Getting Discord client");
+			DiscordBear::SetLogFn([](LogSeverity severity, const char* message) {
+				blog(LOG_WARNING, message);
+				});
 
 			auto voiceChannelInfoCollector =
 				[this](DiscordBear::VoiceChannelInfo&& info)
@@ -76,7 +83,9 @@ namespace
 						[this](DiscordBear::VoiceUserInfo&& voiceExitEvent) { this->OnUserExit(std::move(voiceExitEvent)); });
 				}
 			};
+			blog(LOG_WARNING, "Connecting");
 			m_discordClient->Connect();
+
 
 			m_discordClient->GetSelectedVoiceChannel(voiceChannelInfoCollector);
 
@@ -166,3 +175,11 @@ void CharacterControlOBS::DiscordComponent::UpdateAttributes(const AttributeMap&
 	}
 }
 
+bool CharacterControlOBS::IDIsActiveInDiscord(const std::string& ID)
+{
+	if (auto* info = DiscordInterface::Get().GetCharacterFromUserID(ID))
+	{
+		return true;
+	}
+	return false;
+}

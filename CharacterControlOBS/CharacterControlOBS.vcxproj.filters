@@ -90,6 +90,9 @@
     <ClInclude Include="PCH.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="AnimParameter.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="plugin-main.cpp">

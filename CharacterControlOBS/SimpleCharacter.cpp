@@ -8,6 +8,7 @@
 #include <QtWidgets\QMenu.h>
 #include "DiscordComponent.h"
 #include "WatchedImage.h"
+#include "../DiscordBear/Interface.h"
 
 using namespace CharacterControlOBS;
 using namespace CharacterControlRender;
@@ -19,17 +20,20 @@ namespace
 		CharacterControlRender::Coord size;
 		STR name;
 		STR ID;
+		STR NotSpeakingImg;
+		STR SpeakingImg;
+		bool active = false;
 	};
 
 	const char* GetName(void* unused)
 	{
 		UNUSED_PARAMETER(unused);
-		return obs_module_text("DiscordChar");
+		return obs_module_text("Simple Discord Char");
 	}
 
-	void SetupCharacter(obs_data_t* settings, NamedCharacterDisplayInfo* namedCharacterInfo)
+	void SetupCharacter(NamedCharacterDisplayInfo* namedCharacterInfo)
 	{
-		if (settings == nullptr || namedCharacterInfo == nullptr)
+		if (namedCharacterInfo == nullptr)
 		{
 			return;
 		}
@@ -42,13 +46,12 @@ namespace
 			if (ImageLayer* defaultLayer = character->GetImageRoot().GetLayerByName("default"))
 			{
 				defaultLayer->CreateSlot("SpeakingState");
-				defaultLayer->AddImageLibraryToLayer(obs_data_get_string(settings, "NotSpeakingImg"), "TALK");
-				defaultLayer->AddImageLibraryToLayer(obs_data_get_string(settings, "SpeakingImg"), "SILENT");
+				defaultLayer->AddImageLibraryToLayer(namedCharacterInfo->SpeakingImg, "TALK");
+				defaultLayer->AddImageLibraryToLayer(namedCharacterInfo->NotSpeakingImg, "SILENT");
 			}
 
 			namedCharacterInfo->size = character->GetImageRoot().GetMaxResolution();
 		}
-
 	}
 
 	void* Create(obs_data_t* settings, obs_source_t* source)
@@ -63,8 +66,9 @@ namespace
 		NamedCharacterDisplayInfo* characterInfo = new NamedCharacterDisplayInfo();
 		characterInfo->name = obs_data_get_string(settings, "Name");
 		characterInfo->ID = obs_data_get_string(settings, "ID");
-
-		SetupCharacter(settings, characterInfo);
+		characterInfo->NotSpeakingImg = obs_data_get_string(settings, "NotSpeakingImg");
+		characterInfo->SpeakingImg = obs_data_get_string(settings, "SpeakingImg");
+		characterInfo->active = obs_source_active(source);
 
 		return characterInfo;
 	}
@@ -77,6 +81,7 @@ namespace
 		}
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
 		delete characterInfo;
 	}
 
@@ -125,8 +130,8 @@ namespace
 
 		obs_properties_add_text(settings, "Name", obs_module_text("Character Name"), OBS_TEXT_DEFAULT);
 		obs_properties_add_text(settings, "ID", obs_module_text("Discord ID"), OBS_TEXT_DEFAULT);
-		obs_properties_add_path(settings, "NotSpeakingImg", obs_module_text("Image when speaking"), OBS_PATH_FILE, "*.*", GetGlobalSettingsPath().value_or("").string().c_str());
-		obs_properties_add_path(settings, "SpeakingImg", obs_module_text("Image when not speaking"), OBS_PATH_FILE, "*.*", GetGlobalSettingsPath().value_or("").string().c_str());
+		obs_properties_add_path(settings, "SpeakingImg", obs_module_text("Image when speaking"), OBS_PATH_FILE, "*.*", GetGlobalSettingsPath().value_or("").string().c_str());
+		obs_properties_add_path(settings, "NotSpeakingImg", obs_module_text("Image when not speaking"), OBS_PATH_FILE, "*.*", GetGlobalSettingsPath().value_or("").string().c_str());
 
 		return settings;
 	}
@@ -143,8 +148,38 @@ namespace
 
 		characterInfo->name = obs_data_get_string(settings, "Name");
 		characterInfo->ID = obs_data_get_string(settings, "ID");
+		characterInfo->NotSpeakingImg = obs_data_get_string(settings, "NotSpeakingImg");
+		characterInfo->SpeakingImg = obs_data_get_string(settings, "SpeakingImg");
 
-		SetupCharacter(settings, characterInfo);
+		SetupCharacter(characterInfo);
+	}
+
+	void Activate(void* data)
+	{
+		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		SetupCharacter(characterInfo);
+		characterInfo->active = true;
+	}
+
+	void Deactivate(void* data)
+	{
+		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
+		characterInfo->active = false;
+	}
+
+	void Show(void* data)
+	{
+		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		SetupCharacter(characterInfo);
+		characterInfo->active = true;
+	}
+
+	void Hide(void* data)
+	{
+		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
+		characterInfo->active = false;
 	}
 
 	void Tick(void* data, float seconds)
@@ -157,11 +192,19 @@ namespace
 		}
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		if (!characterInfo->active || !CharacterControlOBS::IDIsActiveInDiscord(characterInfo->ID))
+		{
+			if (Character* character = ActiveCharacters::Get().GetActiveCharacter(characterInfo->name))
+			{
+				ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
+			}
+			return;
+		}
 
 		if (Character* character = ActiveCharacters::Get().GetActiveCharacter(characterInfo->name))
 		{
 			character->UpdateAttributes();
-			
+
 			if (const Attribute<int>* attr = character->GetIntAttribute("Talking"))
 			{
 				character->GetImageRoot().SetSlot("SpeakingState", attr->GetValue() == 0 ? "SILENT" : "TALK");
@@ -179,6 +222,10 @@ namespace
 				}
 			}
 		}
+		else
+		{
+			SetupCharacter(characterInfo);
+		}
 	}
 
 	void Render(void* data, gs_effect_t* effect)
@@ -189,6 +236,11 @@ namespace
 		}
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+
+		if (!characterInfo->active)
+		{
+			return;
+		}
 
 		if (const Character* character = ActiveCharacters::Get().GetActiveCharacter(characterInfo->name))
 		{
@@ -209,8 +261,10 @@ obs_source_info simpleDiscordCharacterSourceInfo = {
 	.get_defaults = GetDefaults,
 	.get_properties = GetProperties,
 	.update = Update,
-	//show = ,
-	//hide = ,
+	.activate = Activate,
+	.deactivate = Deactivate,
+	.show = Show,
+	.hide = Hide,
 	.video_tick = Tick,
 	.video_render = Render,
 	.icon_type = OBS_ICON_TYPE_CUSTOM,

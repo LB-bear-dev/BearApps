@@ -4,7 +4,7 @@ namespace CharacterControlRender
 {
 	struct Coord
 	{
-		int X;
-		int Y;
+		float X = 0;
+		float Y = 0;
 	};
 }

@@ -4,6 +4,9 @@
 #include "Pipe.h"
 #include "Message.h"
 #include "Register.h"
+#include <cpprest/http_client.h>
+#include <cpprest/http_listener.h>
+#include <cpprest/filestream.h>
 
 using namespace DiscordBear;
 
@@ -64,6 +67,26 @@ bool Handshake(Pipe& pipe, const std::string& appID)
 bool Authorize(Pipe& pipe, const std::string& appID, std::string& authorizationCode)
 {
 	LOG(LogSeverity::Info) << "Sending authorization for client ID " << appID << " to discord";
+	//web::http::experimental::listener::http_listener listener(web::uri::encode_uri(L"http://127.0.0.1:5000/callback"));
+	//utf8string berp;
+	//listener.support([&berp](web::http::http_request req)
+	//	{
+	//		berp = req.extract_utf8string().get();
+	//	});
+	//listener.open();
+
+	//web::http::client::http_client client(U("https://discord.com/api/oauth2/"));
+
+	//utf8stringstream oauthString;
+	//oauthString << "client_id=" << appID << "&cliwnt_secret=" << "";
+
+	//LOG(LogSeverity::Info) << "Sending OAuth info: " << oauthString.str();
+
+
+	//utf8string response = client.request(web::http::methods::POST, "tokmn/rpc", oauthString.str(), "application/x-www-form-urlencoded").get().extract_utf8string().get();
+	//json responseJson = json::parse(response);
+
+	//listener.close();
 
 	std::string nonce = GenerateNonce();
 

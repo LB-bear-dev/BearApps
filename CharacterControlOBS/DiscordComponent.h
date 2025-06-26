@@ -16,4 +16,6 @@ namespace CharacterControlOBS
 
 		std::string m_ID;
 	};
+
+	bool IDIsActiveInDiscord(const std::string& ID);
 }

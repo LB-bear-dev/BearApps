@@ -1,6 +1,7 @@
 #pragma once
 #include "LogDefinitions.h"
 #include <sstream>
+#include <iostream>
 namespace DiscordBear
 {
 	extern LogFnDefinition LogFn;

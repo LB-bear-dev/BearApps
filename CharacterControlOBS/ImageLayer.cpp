@@ -3,15 +3,14 @@
 
 using namespace CharacterControlRender;
 
-CharacterControlRender::ImageLayer::ImageLayer() : m_layerName(""), m_active(true), m_parentOffset({0,0})
+CharacterControlRender::ImageLayer::ImageLayer() : m_layerName(""), m_active(true), m_translation({ 0,0 }), m_scale({ 1,1 }), m_rotation(0)
 {
 }
 
-void CharacterControlRender::ImageLayer::CreateChildLayer(STRIDR name, Coord parentOffset)
+void CharacterControlRender::ImageLayer::CreateChildLayer(STRIDR name)
 {
 	ImageLayer child;
 	child.m_layerName = name;
-	child.m_parentOffset = parentOffset;
 	m_childLayersByZOrder.push_back(child);
 }
 
@@ -60,6 +59,8 @@ void CharacterControlRender::ImageLayer::Render(gs_effect_t* effect) const
 	{
 		return;
 	}
+	gs_matrix_push();
+	gs_matrix_translate3f(m_translation.X, m_translation.Y, 0);
 
 	auto image4 = GetImage();
 	if (image4)
@@ -77,8 +78,7 @@ void CharacterControlRender::ImageLayer::Render(gs_effect_t* effect) const
 			gs_eparam_t* param = gs_effect_get_param_by_name(effect, "image");
 			gs_effect_set_texture_srgb(param, texture);
 
-			gs_draw_sprite(texture, 0, image->cx, image->cy);
-
+			gs_draw_sprite(texture, 0 ,image->cx, image->cy);
 			gs_blend_state_pop();
 
 			gs_enable_framebuffer_srgb(previous);
@@ -90,6 +90,7 @@ void CharacterControlRender::ImageLayer::Render(gs_effect_t* effect) const
 	{
 		layer->Render(effect);
 	}
+	gs_matrix_pop();
 }
 
 CharacterControlRender::ImageLayer* CharacterControlRender::ImageLayer::GetLayerByName(STRIDR name)
@@ -158,6 +159,36 @@ void CharacterControlRender::ImageLayer::SetSlot(STRIDR slot, STRIDR name)
 	{
 		layer.SetSlot(slot, name);
 	}
+}
+
+const Coord& CharacterControlRender::ImageLayer::GetTranslation() const
+{
+	return m_translation;
+}
+
+void CharacterControlRender::ImageLayer::SetTranslation(const Coord& translation)
+{
+	m_translation = translation;
+}
+
+const Coord& CharacterControlRender::ImageLayer::GetScale() const
+{
+	return m_scale;
+}
+
+void CharacterControlRender::ImageLayer::SetScale(const Coord& scale)
+{
+	m_scale = scale;
+}
+
+float CharacterControlRender::ImageLayer::GetRotation() const
+{
+	return m_rotation;
+}
+
+void CharacterControlRender::ImageLayer::SetRotation(float rotation)
+{
+	m_rotation = rotation;
 }
 
 const gs_image_file4* CharacterControlRender::ImageLayer::GetImage() const
