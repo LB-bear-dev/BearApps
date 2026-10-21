@@ -26,6 +26,17 @@ namespace
 			return *s_singleton;
 		}
 
+		static void Shutdown()
+		{
+			s_singleton.reset();
+		}
+
+		~DiscordInterface()
+		{
+			// Stop the worker before m_voiceUserList goes away, its callbacks write to it.
+			m_discordClient->Disconnect();
+		}
+
 		DiscordUser* GetCharacterFromUserID(const DiscordBear::UserID& ID)
 		{
 			auto foundUser = m_voiceUserList.find(ID);
@@ -176,4 +187,9 @@ void CharacterControlOBS::DiscordComponent::UpdateAttributes(const AttributeMap&
 bool CharacterControlOBS::IDIsActiveInDiscord(const std::string& ID)
 {
 	return DiscordInterface::Get().GetCharacterFromUserID(ID) != nullptr;
+}
+
+void CharacterControlOBS::ShutdownDiscord()
+{
+	DiscordInterface::Shutdown();
 }

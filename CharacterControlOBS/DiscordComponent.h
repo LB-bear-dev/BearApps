@@ -18,4 +18,7 @@ namespace CharacterControlOBS
 	};
 
 	bool IDIsActiveInDiscord(const std::string& ID);
+
+	// Must run from obs_module_unload, at process exit the update worker is already gone and the client would wait on it forever.
+	void ShutdownDiscord();
 }

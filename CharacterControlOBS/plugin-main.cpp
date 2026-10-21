@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "PCH.h"
 #include <obs-module.h>
 #include "plugin-macros.h"
+#include "DiscordComponent.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
@@ -41,5 +42,6 @@ bool obs_module_load(void)
 
 void obs_module_unload()
 {
+	CharacterControlOBS::ShutdownDiscord();
 	blog(LOG_INFO, "plugin unloaded");
 }
