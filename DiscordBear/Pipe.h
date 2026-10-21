@@ -18,6 +18,15 @@ namespace DiscordBear
 		bool HasMessage();
 		Message ReadMessage();
 	private:
+		enum class ScanResult
+		{
+			Found,
+			NotFound,
+			Error
+		};
+
+		ScanResult ScanForPipe();
+
 		HANDLE m_pipe;
 		std::atomic<bool> m_connected;
 	};

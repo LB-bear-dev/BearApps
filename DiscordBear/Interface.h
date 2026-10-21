@@ -70,19 +70,16 @@ namespace DiscordBear
 		virtual void SubscribeOnVoiceChannelJoin(std::function<void(GenericChannelInfo&&)>) = 0;
 		virtual void UnsubscribeOnVoiceChannelJoin() = 0;
 
-		virtual void SubscribeOnVoiceChannelSpeak(
-			const std::vector<ChannelID>& channelID,
+		virtual void SubscribeOnVoiceChannelSpeak(const std::vector<ChannelID>& channelID,
 			std::function<void(SpeakingEventInfo&&)> speakingStartEvent,
 			std::function<void(SpeakingEventInfo&&)> speakingEndEvent) = 0;
 		virtual void UnsubscribeOnVoiceChannelSpeak() = 0;
 
-		virtual void SubscribeOnVoiceChannelEnter(
-			const std::vector<ChannelID>& channelID,
+		virtual void SubscribeOnVoiceChannelEnter(const std::vector<ChannelID>& channelID,
 			std::function<void(VoiceUserInfo&&)> voiceEnterEvent) = 0;
 		virtual void UnsubscribeOnVoiceChannelEnter() = 0;
 
-		virtual void SubscribeOnVoiceChannelExit(
-			const std::vector<ChannelID>& channelID,
+		virtual void SubscribeOnVoiceChannelExit(const std::vector<ChannelID>& channelID,
 			std::function<void(VoiceUserInfo&&)> voiceExitEvent) = 0;
 		virtual void UnsubscribeOnVoiceChannelExit() = 0;
 

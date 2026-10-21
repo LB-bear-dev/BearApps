@@ -49,17 +49,15 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>C:\Program Files\obs-studio\obs-plugins\64bit\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>C:\Program Files\obs-studio\obs-plugins\64bit\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>DISCORDBEAR;_CONSOLE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>DISCORDBEAR;_CONSOLE;_DEBUG;_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.h</PrecompiledHeaderFile>
@@ -72,6 +70,10 @@
       <AdditionalLibraryDirectories>..\packages\cpprestsdk.v142.2.10.15\build\native\x64\lib;</AdditionalLibraryDirectories>
       <AdditionalDependencies>cpprest142_2_10d.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if not exist "C:\Program Files\obs-studio\obs-plugins\64bit\DiscordBear.dll" copy /Y "$(TargetPath)" "C:\Program Files\obs-studio\obs-plugins\64bit\" || echo [DiscordBear] WARNING - could not deploy to OBS plugins folder; built DLL at: $(TargetPath)
+exit /b 0</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -79,7 +81,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;DISCORDBEAR;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;DISCORDBEAR;_CONSOLE;_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.h</PrecompiledHeaderFile>
@@ -95,6 +97,10 @@
       <AdditionalLibraryDirectories>%USERPROFILE%\.nuget\packages\cpprestsdk.v142\2.10.15\build\native\x64\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>cpprest142_2_10.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if not exist "C:\Program Files\obs-studio\obs-plugins\64bit\DiscordBear.dll" copy /Y "$(TargetPath)" "C:\Program Files\obs-studio\obs-plugins\64bit\" || echo [DiscordBear] WARNING - could not deploy to OBS plugins folder; built DLL at: $(TargetPath)
+exit /b 0</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
@@ -135,4 +141,6 @@
     <Error Condition="!Exists('..\packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets'))" />
     <Error Condition="!Exists('..\packages\cpprestsdk.v142.2.10.15\build\native\cpprestsdk.v142.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\cpprestsdk.v142.2.10.15\build\native\cpprestsdk.v142.targets'))" />
   </Target>
+  <!-- shortcut: Rider's C++ MSBuild build invokes this project with /t:TestCore (project name as target); alias it to Build. Add the same alias per dependent project name if more appear. -->
+  <Target Name="TestCore" DependsOnTargets="Build" />
 </Project>

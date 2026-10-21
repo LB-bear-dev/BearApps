@@ -7,8 +7,8 @@
     <OBSPLUGINS>$(OBSPATH)\rundir\RelWithDebInfo\obs-plugins\64bit</OBSPLUGINS>
     <PSDDIR>C:\Users\chris\source\repos\psd_sdk\</PSDDIR>
     <PSDSDKBUILDDIR>$(PSDDIR)\build\VS2019\x64\Release</PSDSDKBUILDDIR>
-    <QTPATH>C:\Users\chris\source\repos\obs-build-dependencies\windows-deps-2023-04-12-x64</QTPATH>
-    <PYTHONPATH>C:\Users\chris\AppData\Local\Programs\Python\Python311</PYTHONPATH>
+    <QTPATH>C:\Users\chris\source\repos\obs-build-dependencies</QTPATH>
+    <PYTHONPATH>C:\Users\chris\AppData\Local\Programs\Python\Python312</PYTHONPATH>
   </PropertyGroup>
   <PropertyGroup>
     <CustomBuildAfterTargets>

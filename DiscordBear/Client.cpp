@@ -10,8 +10,10 @@
 
 using namespace DiscordBear;
 
-DiscordBear::Client::Client(const std::string& appID, const std::string& appSecret) : m_appID(appID), m_appSecret(appSecret), 
-m_asyncUpdateTask([]() {}), m_finishUpdating(false)
+DiscordBear::Client::Client(const std::string& appID, const std::string& appSecret) : m_appID(appID),
+	m_appSecret(appSecret),
+	m_finishUpdating(false),
+	m_asyncUpdateTask([]() {})
 {}
 
 DiscordBear::Client::~Client()
@@ -92,15 +94,15 @@ bool Authorize(Pipe& pipe, const std::string& appID, std::string& authorizationC
 
 	if (!pipe.WriteMessage(
 		Message(Message::Opcode::Frame,
-			json
-			{
+			json{
 				{"nonce", nonce},
 				{"cmd", "AUTHORIZE"},
 				{"args",
 				{
 					{"client_id", appID.c_str()},
 					{"scopes", {"rpc"}}
-				}}
+				}
+				}
 			}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write authorize message";
@@ -137,15 +139,17 @@ bool Authenticate(Pipe& pipe, const std::string& authorizationCode, const std::s
 	std::string nonce = GenerateNonce();
 
 	if (!pipe.WriteMessage(
-		Message(Message::Opcode::Frame,
-			json
-			{
+		Message(
+			Message::Opcode::Frame,
+			json{
 				{"nonce", nonce},
 				{"cmd", "AUTHENTICATE"},
-				{"args",
 				{
-					{"access_token", authorizationCode}
-				}}
+					"args",
+					{
+						{"access_token", authorizationCode}
+					}
+				}
 			}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write authenticate message";
@@ -221,9 +225,9 @@ void DiscordBear::Client::GetSelectedVoiceChannel(std::function<void(VoiceChanne
 	std::string nonce = GenerateNonce();
 
 	if (!m_pipe.WriteMessage(
-		Message(Message::Opcode::Frame,
-			json
-			{
+		Message(
+			Message::Opcode::Frame,
+			json{
 				{"nonce", nonce},
 				{"cmd", "GET_SELECTED_VOICE_CHANNEL"}
 			}.dump())))
@@ -236,12 +240,12 @@ void DiscordBear::Client::GetSelectedVoiceChannel(std::function<void(VoiceChanne
 	m_nonceToSelectedVoiceChannelResponses[nonce] = response;
 }
 
-void DiscordBear::Client::SubscribeOnVoiceChannelJoin(std::function<void(GenericChannelInfo&&)> voiceJoinEvent)
+void DiscordBear::Client::SubscribeOnVoiceChannelJoin(std::function<void(GenericChannelInfo&&)> VoiceJoinEvent)
 {
 	if (!m_pipe.WriteMessage(
-		Message(Message::Opcode::Frame,
-			json
-			{
+		Message(
+			Message::Opcode::Frame,
+			json{
 				{"nonce", GenerateNonce()},
 				{"cmd", "SUBSCRIBE"},
 				{"evt", "VOICE_CHANNEL_SELECT"}
@@ -252,7 +256,7 @@ void DiscordBear::Client::SubscribeOnVoiceChannelJoin(std::function<void(Generic
 	}
 
 	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelJoinEventCreateLock);
-	m_voiceChannelJoinEvent = voiceJoinEvent;
+	m_voiceChannelJoinEvent = VoiceJoinEvent;
 }
 
 void DiscordBear::Client::UnsubscribeOnVoiceChannelJoin()
@@ -460,7 +464,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelEnter()
 		}
 	}
 
-	concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelEnterEventCreateLock);
+	concurrency::reader_writer_lock::scoped_lock Lock(m_voiceChannelEnterEventCreateLock);
 	m_enterEventChannelIDList.clear();
 	m_voiceChannelEnterEvent = nullptr;
 }

@@ -6,12 +6,47 @@ namespace DiscordBear
 {
 	bool Pipe::Connect()
 	{
+		// Discord may start, or auto-restart (updates), after us. Wait for a pipe to appear.
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+		bool firstScan = true;
+		for (;;)
+		{
+			auto result = ScanForPipe();
+			if (result == ScanResult::Found)
+			{
+				return true;
+			}
+
+			if (result == ScanResult::Error)
+			{
+				return false;
+			}
+
+			if (std::chrono::steady_clock::now() >= deadline)
+			{
+				LOG(LogSeverity::Severe) << "Could not find any discord-ipc pipe after 60 seconds, is discord running?";
+				m_connected = false;
+				return false;
+			}
+
+			if (firstScan)
+			{
+				LOG(LogSeverity::Info) << "No discord-ipc pipe found yet, waiting for discord to start...";
+				firstScan = false;
+			}
+
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+	}
+
+	Pipe::ScanResult Pipe::ScanForPipe()
+	{
 		wchar_t pipeName[]{ L"\\\\?\\pipe\\discord-ipc-0" };
 		const unsigned long pipeDigit = sizeof(pipeName) / sizeof(wchar_t) - 2;
 		pipeName[pipeDigit] = L'0';
 		for (;;)
 		{
-			LOG(LogSeverity::Info) << "Trying connection to pipe " << pipeName;
+			LOG(LogSeverity::Info) << "Trying connection to pipe \\\\.\\pipe\\discord-ipc-" << (char)pipeName[pipeDigit];
 			m_pipe = CreateFileW(
 				pipeName,
 				GENERIC_READ | GENERIC_WRITE,
@@ -23,35 +58,38 @@ namespace DiscordBear
 
 			if (m_pipe != INVALID_HANDLE_VALUE)
 			{
-				LOG(LogSeverity::Info) << "Connected to pipe " << pipeName;
+				LOG(LogSeverity::Info) << "Connected to pipe \\\\.\\pipe\\discord-ipc-" << (char)pipeName[pipeDigit];
 				m_connected = true;
-				return m_connected;
+				return ScanResult::Found;
 			}
 
 			auto lastError = GetLastError();
 			if (lastError == ERROR_FILE_NOT_FOUND)
 			{
-				LOG(LogSeverity::NonSevere) << "Could not find pipe at " << pipeName;
-				if (pipeName[pipeDigit] < L'9') {
+				LOG(LogSeverity::NonSevere) << "Could not find pipe at \\\\.\\pipe\\discord-ipc-" << (char)pipeName[pipeDigit];
+				if (pipeName[pipeDigit] < L'9')
+				{
 					pipeName[pipeDigit]++;
 					continue;
 				}
+
+				return ScanResult::NotFound;
 			}
 			else if (lastError == ERROR_PIPE_BUSY)
 			{
-				LOG(LogSeverity::NonSevere) << "Pipe at " << pipeName << " is busy";
+				LOG(LogSeverity::NonSevere) << "Pipe at \\\\.\\pipe\\discord-ipc-" << (char)pipeName[pipeDigit] << " is busy";
 				if (!WaitNamedPipeW(pipeName, 10000))
 				{
-					LOG(LogSeverity::Severe) << "Pipe at " << pipeName << " is busy and could not be reached after wait timeout. Connection rejected";
+					LOG(LogSeverity::Severe) << "Pipe at \\\\.\\pipe\\discord-ipc-" << (char)pipeName[pipeDigit] << " is busy and could not be reached after wait timeout. Connection rejected";
 					m_connected = false;
-					return m_connected;
+					return ScanResult::Error;
 				}
 				continue;
 			}
 
-			LOG(LogSeverity::Severe) << "Could not connect to pipe " << pipeName << ", unknown issue";
+			LOG(LogSeverity::Severe) << "Could not connect to pipe \\\\.\\pipe\\discord-ipc-" << (char)pipeName[pipeDigit] << ", unknown issue";
 			m_connected = false;
-			return m_connected;
+			return ScanResult::Error;
 		}
 	}
 

@@ -1,66 +1,65 @@
 #pragma once
-#include "Pipe.h"
 #include "interface.h"
+#include "Pipe.h"
+
 namespace DiscordBear
 {
-	class Client final : public DiscordClient
-	{
-	public:
-		Client(const std::string& appID, const std::string& appSecret);
-		Client(Client&) = delete;
-		~Client();
+class Client final : public DiscordClient
+{
+public:
+	Client(const std::string& appID, const std::string& appSecret);
+	Client(Client&) = delete;
+	~Client() override;
 
-		bool Connect();
-		void Disconnect();
+	bool Connect() override;
+	void Disconnect() override;
 
-		void GetSelectedVoiceChannel(std::function<void(VoiceChannelInfo&&)> getJoinResponse);
+	void GetSelectedVoiceChannel(std::function<void(VoiceChannelInfo&&)> GetJoinResponse) override;
 
-		void SubscribeOnVoiceChannelJoin(std::function<void(GenericChannelInfo&&)> voiceJoinEvent);
-		void UnsubscribeOnVoiceChannelJoin();
+	void SubscribeOnVoiceChannelJoin(std::function<void(GenericChannelInfo&&)> VoiceJoinEvent) override;
+	void UnsubscribeOnVoiceChannelJoin() override;
 
-		void SubscribeOnVoiceChannelSpeak(
-			const std::vector<ChannelID>& channelID,
-			std::function<void(SpeakingEventInfo&&)> speakingStartEvent,
-			std::function<void(SpeakingEventInfo&&)> speakingEndEvent);
-		void UnsubscribeOnVoiceChannelSpeak();
+	void SubscribeOnVoiceChannelSpeak(const std::vector<ChannelID>& channelID,
+		std::function<void(SpeakingEventInfo&&)> speakingStartEvent,
+		std::function<void(SpeakingEventInfo&&)> speakingEndEvent) override;
+	void UnsubscribeOnVoiceChannelSpeak() override;
 
-		void SubscribeOnVoiceChannelEnter(
-			const std::vector<ChannelID>& channelID,
-			std::function<void(VoiceUserInfo&&)> voiceEnterEvent);
-		void UnsubscribeOnVoiceChannelEnter();
+	void SubscribeOnVoiceChannelEnter(const std::vector<ChannelID>& channelID,
+		std::function<void(VoiceUserInfo&&)> voiceEnterEvent) override;
+	void UnsubscribeOnVoiceChannelEnter() override;
 
-		void SubscribeOnVoiceChannelExit(
-			const std::vector<ChannelID>& channelID,
-			std::function<void(VoiceUserInfo&&)> voiceExitEvent);
-		void UnsubscribeOnVoiceChannelExit();
+	void SubscribeOnVoiceChannelExit(const std::vector<ChannelID>& channelID,
+		std::function<void(VoiceUserInfo&&)> voiceExitEvent) override;
+	void UnsubscribeOnVoiceChannelExit() override;
 
-		void Update();
-		void UpdateAsync();
-	private:
-		Pipe m_pipe;
-		const std::string m_appID;
-		const std::string m_appSecret;
-		std::atomic<bool> m_finishUpdating;
+	void Update() override;
+	void UpdateAsync() override;
 
-		concurrency::task<void> m_asyncUpdateTask;
+private:
+	Pipe m_pipe;
+	const std::string m_appID;
+	const std::string m_appSecret;
+	std::atomic<bool> m_finishUpdating;
 
-		concurrency::reader_writer_lock m_nonceToSelectedVoiceChannelResponsesDeleteLock;
-		concurrency::concurrent_unordered_map<std::string, std::function<void(VoiceChannelInfo&&)>> m_nonceToSelectedVoiceChannelResponses;
+	concurrency::task<void> m_asyncUpdateTask;
 
-		concurrency::reader_writer_lock m_voiceChannelJoinEventCreateLock;
-		std::function<void(GenericChannelInfo&&)> m_voiceChannelJoinEvent;
+	concurrency::reader_writer_lock m_nonceToSelectedVoiceChannelResponsesDeleteLock;
+	concurrency::concurrent_unordered_map<std::string, std::function<void(VoiceChannelInfo&&)>> m_nonceToSelectedVoiceChannelResponses;
 
-		concurrency::reader_writer_lock m_speakingEventCreateLock;
-		std::vector<ChannelID> m_speakingEventChannelIDList;
-		std::function<void(SpeakingEventInfo&&)> m_speakingStartEvent;
-		std::function<void(SpeakingEventInfo&&)> m_speakingEndEvent;
+	concurrency::reader_writer_lock m_voiceChannelJoinEventCreateLock;
+	std::function<void(GenericChannelInfo&&)> m_voiceChannelJoinEvent;
 
-		concurrency::reader_writer_lock m_voiceChannelEnterEventCreateLock;
-		std::vector<ChannelID> m_enterEventChannelIDList;
-		std::function<void(VoiceUserInfo&&)> m_voiceChannelEnterEvent;
+	concurrency::reader_writer_lock m_speakingEventCreateLock;
+	std::vector<ChannelID> m_speakingEventChannelIDList;
+	std::function<void(SpeakingEventInfo&&)> m_speakingStartEvent;
+	std::function<void(SpeakingEventInfo&&)> m_speakingEndEvent;
 
-		concurrency::reader_writer_lock m_voiceChannelExitEventCreateLock;
-		std::vector<ChannelID> m_exitEventChannelIDList;
-		std::function<void(VoiceUserInfo&&)> m_voiceChannelExitEvent;
-	};
+	concurrency::reader_writer_lock m_voiceChannelEnterEventCreateLock;
+	std::vector<ChannelID> m_enterEventChannelIDList;
+	std::function<void(VoiceUserInfo&&)> m_voiceChannelEnterEvent;
+
+	concurrency::reader_writer_lock m_voiceChannelExitEventCreateLock;
+	std::vector<ChannelID> m_exitEventChannelIDList;
+	std::function<void(VoiceUserInfo&&)> m_voiceChannelExitEvent;
+};
 }

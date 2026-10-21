@@ -9,13 +9,13 @@ namespace DiscordBear
 	class LogLine : public std::stringstream
 	{
 	public:
-		LogLine(LogSeverity severity):m_severity(severity) {}
-		~LogLine()
+		LogLine(LogSeverity severity) : m_severity(severity) {}
+		~LogLine() override
 		{
 			LogFn(m_severity, this->str().c_str());
 		}
 
-	private: 
+	private:
 		LogSeverity m_severity;
 	};
 

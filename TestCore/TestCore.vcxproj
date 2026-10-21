@@ -142,4 +142,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <!-- shortcut: Rider's C++ MSBuild build passes /t:<project name>; alias it to Build. -->
+  <Target Name="TestCore" DependsOnTargets="Build" />
 </Project>
