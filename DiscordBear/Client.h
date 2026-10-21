@@ -36,6 +36,8 @@ namespace DiscordBear
 	private:
 		// Runs the pipe/handshake/authorize/authenticate sequence, no worker or reconnect bookkeeping.
 		bool Establish();
+		// AUTHENTICATEs with the cached token, refreshing it first if it has expired, so discord doesn't prompt the user.
+		bool AuthenticateWithCachedToken();
 		bool Reconnect();
 		void RestoreSubscriptions();
 		bool SendSubscription(const char* eventName, const ChannelID* channelID);

@@ -5,10 +5,11 @@
 // from the DLL.
 //
 // Pipe and Client are tested against a fake Discord: FakeDiscord owns \\.\pipe\discord-ipc-0 and
-// answers the protocol frames. No real Discord is needed. One exception: Client::Connect() always
-// reaches GetAuthToken(), which does a real HTTPS call to discord.com; that call fails (or throws)
-// for the fake app ID, which is expected and caught here. Everything before that step - pipe
-// connect, handshake, authorize - succeeds against the fake and leaves the pipe connected.
+// answers the protocol frames. No real Discord is needed. One exception: without a cached token,
+// Client::Connect() reaches GetAuthToken() (and RefreshAuthToken() with a stale one), which do a real
+// HTTPS call to discord.com; that call fails (or throws) for the fake app ID, which is expected and
+// caught here. Everything before that step - pipe connect, handshake, authorize - succeeds against the
+// fake and leaves the pipe connected.
 //
 // If real Discord is running, discord-ipc-0 is taken and the pipe tests skip.
 
@@ -44,6 +45,7 @@ using json = nlohmann::json;
 #include "../DiscordBear/Message.h"
 #include "../DiscordBear/Pipe.h"
 #include "../DiscordBear/Client.h"
+#include "../DiscordBear/Register.h"
 
 // ---------------------------------------------------------------------------
 // Tiny test harness (no framework)
@@ -243,7 +245,20 @@ public:
 		m_voiceChannelData = std::move(data);
 	}
 
+	// AUTHENTICATE succeeds only with this token, anything else gets the ERROR discord sends for a bad token.
+	void SetAcceptedToken(std::string token)
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_acceptedToken = std::move(token);
+	}
+
 private:
+	bool AcceptsToken(const std::string& token)
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return token == m_acceptedToken;
+	}
+
 	void Run()
 	{
 		// Blocks until the client connects.
@@ -333,7 +348,15 @@ private:
 		}
 		else if (cmd == "AUTHENTICATE")
 		{
-			reply = json{{"nonce", parsed.value("nonce", "")}, {"evt", "AUTHENTICATE"}, {"data", json::object()}}.dump();
+			const std::string token = parsed.value("args", json::object()).value("access_token", "");
+			if (AcceptsToken(token))
+			{
+				reply = json{{"nonce", parsed.value("nonce", "")}, {"cmd", "AUTHENTICATE"}, {"data", json::object()}}.dump();
+			}
+			else
+			{
+				reply = json{{"nonce", parsed.value("nonce", "")}, {"cmd", "AUTHENTICATE"}, {"evt", "ERROR"}, {"data", {{"code", 4009}, {"message", "Invalid access token"}}}}.dump();
+			}
 		}
 		else if (cmd == "GET_SELECTED_VOICE_CHANNEL")
 		{
@@ -368,6 +391,7 @@ private:
 	std::vector<json> m_history;
 	std::string m_handshakeClientId;
 	json m_voiceChannelData = json::object();
+	std::string m_acceptedToken = "test-access-token";
 };
 
 // ---------------------------------------------------------------------------
@@ -468,6 +492,21 @@ namespace
 	// discord.com; that call fails (or throws) for the fake app ID. Everything before it
 	// (registry registration, pipe connect, handshake, authorize) succeeds against the
 	// fake Discord, and the pipe stays connected - which is all the dispatch tests need.
+	const char* TestAppID = "test-app-id-000";
+
+	long long UnixNow()
+	{
+		return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	}
+
+	// Token cache tests write the real HKCU cache for TestAppID. Starting and ending clean keeps the other
+	// client tests, which expect no cached token, unaffected.
+	struct CachedTokenGuard
+	{
+		CachedTokenGuard() { DiscordBear::ClearCachedToken(TestAppID); }
+		~CachedTokenGuard() { DiscordBear::ClearCachedToken(TestAppID); }
+	};
+
 	bool ConnectForTest(DiscordBear::Client& client)
 	{
 		try
@@ -1225,6 +1264,109 @@ TEST(Client_Disconnect_FromCallbackDoesNotDeadlock)
 		Sleep(20);
 	}
 	CHECK(done);
+}
+
+// ---------------------------------------------------------------------------
+// Token cache
+// ---------------------------------------------------------------------------
+
+TEST(TokenCache_RoundTripsAndClears)
+{
+	CachedTokenGuard guard;
+
+	CHECK(!DiscordBear::LoadCachedToken(TestAppID).has_value());
+
+	CHECK(DiscordBear::SaveCachedToken(TestAppID, {"cache-access", 1234567890ll, "cache-refresh"}));
+
+	auto loaded = DiscordBear::LoadCachedToken(TestAppID);
+	CHECK(loaded.has_value());
+	if (loaded)
+	{
+		CHECK(loaded->token == "cache-access");
+		CHECK(loaded->expiresAt == 1234567890ll);
+		CHECK(loaded->refreshToken == "cache-refresh");
+	}
+
+	DiscordBear::ClearCachedToken(TestAppID);
+	CHECK(!DiscordBear::LoadCachedToken(TestAppID).has_value());
+}
+
+TEST(TokenCache_StoredEncrypted)
+{
+	CachedTokenGuard guard;
+
+	CHECK(DiscordBear::SaveCachedToken(TestAppID, {"plaintext-marker-access", UnixNow() + 3600, "plaintext-marker-refresh"}));
+
+	const char* keyName = "Software\\BearApps\\DiscordBear";
+	DWORD size = 0;
+	CHECK(RegGetValueA(HKEY_CURRENT_USER, keyName, TestAppID, RRF_RT_REG_BINARY, nullptr, nullptr, &size) == ERROR_SUCCESS);
+	std::string stored(size, '\0');
+	CHECK(RegGetValueA(HKEY_CURRENT_USER, keyName, TestAppID, RRF_RT_REG_BINARY, nullptr, &stored[0], &size) == ERROR_SUCCESS);
+	CHECK(stored.find("plaintext-marker") == std::string::npos);
+}
+
+TEST(TokenCache_ValidityLeavesSlack)
+{
+	CHECK(DiscordBear::TokenStillValid({"t", UnixNow() + 3600, "r"}));
+	CHECK(!DiscordBear::TokenStillValid({"t", UnixNow() + 30, "r"}));
+	CHECK(!DiscordBear::TokenStillValid({"t", UnixNow() - 10, "r"}));
+}
+
+TEST(Client_Connect_CachedTokenSkipsAuthorize)
+{
+	CachedTokenGuard guard;
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	DiscordBear::SaveCachedToken(TestAppID, {"test-access-token", UnixNow() + 3600, "test-refresh-token"});
+
+	DiscordBear::Client client(TestAppID, "test-secret");
+	CHECK(ConnectForTest(client));
+	CHECK(fake.CountCommand("AUTHENTICATE", "") == 1);
+	CHECK(fake.CountCommand("AUTHORIZE", "") == 0);
+
+	client.Disconnect();
+}
+
+TEST(Client_Connect_RejectedCachedTokenFallsBackToAuthorize)
+{
+	CachedTokenGuard guard;
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	// Discord rejects the cached token and the refresh (a real HTTPS call) fails for the fake app ID.
+	DiscordBear::SaveCachedToken(TestAppID, {"revoked-access-token", UnixNow() + 3600, "revoked-refresh-token"});
+
+	DiscordBear::Client client(TestAppID, "test-secret");
+	ConnectForTest(client); // expected to fail at the OAuth network step
+
+	CHECK(fake.WaitForCommand("AUTHORIZE", "", std::chrono::milliseconds(5000)));
+	CHECK(fake.CountCommand("AUTHENTICATE", "") == 1);
+	CHECK(!DiscordBear::LoadCachedToken(TestAppID).has_value());
+}
+
+TEST(Client_Connect_ExpiredCachedTokenIsNotSent)
+{
+	CachedTokenGuard guard;
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	DiscordBear::SaveCachedToken(TestAppID, {"test-access-token", UnixNow() - 10, "expired-refresh-token"});
+
+	DiscordBear::Client client(TestAppID, "test-secret");
+	ConnectForTest(client); // the refresh and then the code exchange fail at the OAuth network step
+
+	CHECK(fake.WaitForCommand("AUTHORIZE", "", std::chrono::milliseconds(5000)));
+	CHECK(fake.CountCommand("AUTHENTICATE", "") == 0);
 }
 
 // ---------------------------------------------------------------------------

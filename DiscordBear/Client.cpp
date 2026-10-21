@@ -123,11 +123,11 @@ bool Authorize(Pipe& pipe, const std::string& appID, std::string& authorizationC
 	return true;
 }
 
-bool Authenticate(Pipe& pipe, const std::string& authorizationCode, const std::string& appID)
+bool Authenticate(Pipe& pipe, const std::string& accessToken)
 {
 	std::string nonce = GenerateNonce();
 
-	if (!pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", nonce}, {"cmd", "AUTHENTICATE"}, {"args", {{"access_token", authorizationCode}}}}.dump())))
+	if (!pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", nonce}, {"cmd", "AUTHENTICATE"}, {"args", {{"access_token", accessToken}}}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write authenticate message";
 		return false;
@@ -148,7 +148,57 @@ bool Authenticate(Pipe& pipe, const std::string& authorizationCode, const std::s
 		return false;
 	}
 
+	// An expired or revoked token comes back as an ERROR event, the pipe stays usable.
+	if (responseJson["evt"] == "ERROR")
+	{
+		LOG(LogSeverity::NonSevere) << "Discord rejected the access token: " << responseJson.value("data", json::object()).value("message", "no reason given");
+		return false;
+	}
+
 	return true;
+}
+
+bool DiscordBear::Client::AuthenticateWithCachedToken()
+{
+	auto cached = LoadCachedToken(m_appID);
+	if (!cached)
+	{
+		return false;
+	}
+
+	if (TokenStillValid(*cached))
+	{
+		LOG(LogSeverity::Info) << "Authenticating with the cached token for client ID " << m_appID;
+		if (Authenticate(m_pipe, cached->token))
+		{
+			return true;
+		}
+
+		// A broken pipe says nothing about the token, keep it for the next attempt.
+		if (!m_pipe.Connected())
+		{
+			return false;
+		}
+	}
+
+	auto refreshed = RefreshAuthToken(m_appID, m_appSecret, cached->refreshToken);
+	if (!refreshed)
+	{
+		ClearCachedToken(m_appID);
+		return false;
+	}
+
+	SaveCachedToken(m_appID, *refreshed);
+	if (Authenticate(m_pipe, refreshed->token))
+	{
+		return true;
+	}
+
+	if (m_pipe.Connected())
+	{
+		ClearCachedToken(m_appID);
+	}
+	return false;
 }
 
 bool DiscordBear::Client::Connect()
@@ -207,6 +257,20 @@ bool DiscordBear::Client::Establish()
 			return false;
 		}
 
+		if (AuthenticateWithCachedToken())
+		{
+			LOG(LogSeverity::Info) << "Discord client connected";
+			return true;
+		}
+
+		// Losing the pipe isn't an auth problem, prompting the user won't help. The update worker retries.
+		if (!m_pipe.Connected())
+		{
+			LOG(LogSeverity::Severe) << "Discord pipe broke while authenticating, client is not connected.";
+			return false;
+		}
+
+		// No usable cached token, fall back to discord's authorization prompt.
 		std::string authorizationCode;
 		if (!Authorize(m_pipe, m_appID, authorizationCode))
 		{
@@ -220,7 +284,9 @@ bool DiscordBear::Client::Establish()
 			return false;
 		}
 
-		if (!Authenticate(m_pipe, params->token, m_appID))
+		SaveCachedToken(m_appID, *params);
+
+		if (!Authenticate(m_pipe, params->token))
 		{
 			return false;
 		}
