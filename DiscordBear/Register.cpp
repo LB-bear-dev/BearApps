@@ -2,7 +2,6 @@
 #include "Register.h"
 #include "Log.h"
 #include <cpprest/http_client.h>
-#include <cpprest/filestream.h>
 
 bool DiscordBear::RegisterAppToDiscord(const std::string& appID)
 {
@@ -32,19 +31,19 @@ bool DiscordBear::RegisterAppToDiscord(const std::string& appID)
 	{
 		HKEY key;
 		~KeyGuard() { RegCloseKey(key); }
-	} keyGuard{ key };
+	} keyGuard{key};
 
 	// Registry calls return Win32 error codes (positive), so FAILED() would never trip on them.
 	const auto succeeded = [](LSTATUS result, const char* what)
-	{
-		if (result != ERROR_SUCCESS)
 		{
-			LOG(LogSeverity::Severe) << "Could not set " << what << ", error " << result << " so we can't authenticate";
-			return false;
-		}
+			if (result != ERROR_SUCCESS)
+			{
+				LOG(LogSeverity::Severe) << "Could not set " << what << ", error " << result << " so we can't authenticate";
+				return false;
+			}
 
-		return true;
-	};
+			return true;
+		};
 
 	const std::string description = protocolDescription.str();
 	if (!succeeded(RegSetKeyValueA(key, nullptr, nullptr, REG_SZ, description.c_str(), (DWORD)description.length() + 1), "description"))
@@ -87,18 +86,13 @@ std::optional<DiscordBear::OAuthParams> DiscordBear::GetAuthToken(const std::str
 		auto httpResponse = client.request(web::http::methods::POST, "token", oauthString.str(), "application/x-www-form-urlencoded").get();
 		json parsedResponse = json::parse(httpResponse.extract_utf8string().get(), nullptr, false);
 
-		if (httpResponse.status_code() != web::http::status_codes::OK ||
-			parsedResponse.is_discarded() ||
-			!parsedResponse.contains("access_token"))
+		if (httpResponse.status_code() != web::http::status_codes::OK || parsedResponse.is_discarded() || !parsedResponse.contains("access_token"))
 		{
 			LOG(LogSeverity::Severe) << "Token exchange failed, HTTP status " << httpResponse.status_code();
 			return std::nullopt;
 		}
 
-		return OAuthParams{
-			parsedResponse.value("access_token", ""),
-			parsedResponse.value("expires_in", 0ul),
-			parsedResponse.value("refresh_token", "") };
+		return OAuthParams{parsedResponse.value("access_token", ""), parsedResponse.value("expires_in", 0ul), parsedResponse.value("refresh_token", "")};
 	}
 	catch (const std::exception& e)
 	{

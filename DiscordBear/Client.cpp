@@ -6,19 +6,24 @@
 #include "Register.h"
 #include <cpprest/http_client.h>
 #include <cpprest/http_listener.h>
-#include <cpprest/filestream.h>
 
 using namespace DiscordBear;
 
 DiscordBear::Client::Client(const std::string& appID, const std::string& appSecret) : m_appID(appID),
 	m_appSecret(appSecret),
 	m_finishUpdating(false),
+	m_autoReconnect(false),
+	m_workerThreadId(std::thread::id()),
 	m_asyncUpdateTask([]() {})
 {}
 
 DiscordBear::Client::~Client()
 {
-	LOG(LogSeverity::NonSevere) << "Discord client not disconnected before client was destroyed, disconnecting now.";
+	if (m_pipe.Connected())
+	{
+		LOG(LogSeverity::NonSevere) << "Discord client not disconnected before client was destroyed, disconnecting now.";
+	}
+
 	Disconnect();
 }
 
@@ -35,13 +40,7 @@ bool Handshake(Pipe& pipe, const std::string& appID)
 {
 	LOG(LogSeverity::Info) << "Sending handshake for client ID " << appID << " to discord";
 
-	if (!pipe.WriteMessage(
-		Message(Message::Opcode::Handshake,
-			json
-			{
-				{"v", "1"},
-				{"client_id", appID.c_str()}
-			}.dump())))
+	if (!pipe.WriteMessage(Message(Message::Opcode::Handshake, json{{"v", "1"}, {"client_id", appID.c_str()}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write handshake message";
 		return false;
@@ -92,24 +91,14 @@ bool Authorize(Pipe& pipe, const std::string& appID, std::string& authorizationC
 
 	std::string nonce = GenerateNonce();
 
-	if (!pipe.WriteMessage(
-		Message(Message::Opcode::Frame,
-			json{
-				{"nonce", nonce},
-				{"cmd", "AUTHORIZE"},
-				{"args",
-				{
-					{"client_id", appID.c_str()},
-					{"scopes", {"rpc"}}
-				}
-				}
-			}.dump())))
+	if (!pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", nonce}, {"cmd", "AUTHORIZE"}, {"args", {{"client_id", appID.c_str()}, {"scopes", {"rpc"}}}}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write authorize message";
 		return false;
 	}
 
-	Message response = pipe.ReadMessage();
+	// Discord only answers once the user has clicked through its authorization prompt, so give them time.
+	Message response = pipe.ReadMessage(std::chrono::minutes(2));
 
 	if (!response.IsValid())
 	{
@@ -124,7 +113,7 @@ bool Authorize(Pipe& pipe, const std::string& appID, std::string& authorizationC
 		return false;
 	}
 
-	if ( responseJson["evt"] == "ERROR" )
+	if (responseJson["evt"] == "ERROR")
 	{
 		return false;
 	}
@@ -138,19 +127,7 @@ bool Authenticate(Pipe& pipe, const std::string& authorizationCode, const std::s
 {
 	std::string nonce = GenerateNonce();
 
-	if (!pipe.WriteMessage(
-		Message(
-			Message::Opcode::Frame,
-			json{
-				{"nonce", nonce},
-				{"cmd", "AUTHENTICATE"},
-				{
-					"args",
-					{
-						{"access_token", authorizationCode}
-					}
-				}
-			}.dump())))
+	if (!pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", nonce}, {"cmd", "AUTHENTICATE"}, {"args", {{"access_token", authorizationCode}}}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write authenticate message";
 		return false;
@@ -176,6 +153,38 @@ bool Authenticate(Pipe& pipe, const std::string& authorizationCode, const std::s
 
 bool DiscordBear::Client::Connect()
 {
+	// An UpdateAsync worker from an earlier connection must be gone before the pipe is reused.
+	StopUpdating();
+	m_finishUpdating = false;
+
+	// A failed Connect() leaves whatever part of the pipe sequence succeeded in place, callers (and the tests) rely on that.
+	// Disconnect() or the destructor cleans it up.
+	if (!Establish())
+	{
+		return false;
+	}
+
+	// From here on, if discord goes away the update worker reconnects on its own.
+	m_autoReconnect = true;
+	return true;
+}
+
+bool DiscordBear::Client::Reconnect()
+{
+	LOG(LogSeverity::Info) << "Reconnecting discord client";
+
+	if (!Establish())
+	{
+		m_pipe.Disconnect();
+		return false;
+	}
+
+	RestoreSubscriptions();
+	return true;
+}
+
+bool DiscordBear::Client::Establish()
+{
 	LOG(LogSeverity::Info) << "Connecting discord client";
 
 	// Handshake/Authorize/Authenticate parse JSON and the token exchange does network IO, either can throw.
@@ -187,7 +196,7 @@ bool DiscordBear::Client::Connect()
 			return false;
 		}
 
-		if (!m_pipe.Connect())
+		if (!m_pipe.Connect(&m_finishUpdating))
 		{
 			LOG(LogSeverity::Severe) << "Could not connect to discord pipe, client is not connected.";
 			return false;
@@ -230,22 +239,103 @@ void DiscordBear::Client::Disconnect()
 {
 	LOG(LogSeverity::Info) << "Disconnecting discord client";
 
+	m_autoReconnect = false;
+	StopUpdating();
+	m_pipe.Disconnect();
+}
+
+void DiscordBear::Client::StopUpdating()
+{
 	m_finishUpdating = true;
 
-	m_pipe.Disconnect();
+	// A callback runs on the worker and may call Disconnect(), waiting on ourselves would never return.
+	// The loop sees the flag as soon as the callback returns.
+	if (std::this_thread::get_id() == m_workerThreadId)
+	{
+		return;
+	}
+
+	// The worker reads the pipe and touches our members, so it has to be finished before either goes away.
+	try
+	{
+		static_cast<void>(m_asyncUpdateTask.wait());
+	}
+	catch (...)
+	{
+		// The task already logged whatever stopped it, all that matters here is that it has finished.
+		LOG(LogSeverity::Verbose) << "Update task finished with an exception";
+	}
+}
+
+bool DiscordBear::Client::SendSubscription(const char* eventName, const ChannelID* channelID)
+{
+	json message{{"nonce", GenerateNonce()}, {"cmd", "SUBSCRIBE"}, {"evt", eventName}};
+
+	if (channelID != nullptr)
+	{
+		message["args"]["channel_id"] = *channelID;
+	}
+
+	return m_pipe.WriteMessage(Message(Message::Opcode::Frame, message.dump()));
+}
+
+void DiscordBear::Client::RestoreSubscriptions()
+{
+	{
+		// Requests sent on the old connection will never be answered.
+		concurrency::reader_writer_lock::scoped_lock lock(m_nonceToSelectedVoiceChannelResponsesDeleteLock);
+		m_nonceToSelectedVoiceChannelResponses.clear();
+	}
+
+	// Discord forgets our subscriptions with the connection, so send them again for whatever is still registered.
+	// If the pipe breaks again part way, the update worker notices and reconnects once more.
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelJoinEventCreateLock);
+		if (m_voiceChannelJoinEvent && !SendSubscription("VOICE_CHANNEL_SELECT", nullptr))
+		{
+			return;
+		}
+	}
+
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_speakingEventCreateLock);
+		for (auto& channelID : m_speakingEventChannelIDList)
+		{
+			if (!SendSubscription("SPEAKING_START", &channelID) || !SendSubscription("SPEAKING_STOP", &channelID))
+			{
+				return;
+			}
+		}
+	}
+
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelEnterEventCreateLock);
+		for (auto& channelID : m_enterEventChannelIDList)
+		{
+			if (!SendSubscription("VOICE_STATE_CREATE", &channelID))
+			{
+				return;
+			}
+		}
+	}
+
+	{
+		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelExitEventCreateLock);
+		for (auto& channelID : m_exitEventChannelIDList)
+		{
+			if (!SendSubscription("VOICE_STATE_DELETE", &channelID))
+			{
+				return;
+			}
+		}
+	}
 }
 
 void DiscordBear::Client::GetSelectedVoiceChannel(std::function<void(VoiceChannelInfo&&)> response)
 {
 	std::string nonce = GenerateNonce();
 
-	if (!m_pipe.WriteMessage(
-		Message(
-			Message::Opcode::Frame,
-			json{
-				{"nonce", nonce},
-				{"cmd", "GET_SELECTED_VOICE_CHANNEL"}
-			}.dump())))
+	if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", nonce}, {"cmd", "GET_SELECTED_VOICE_CHANNEL"}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write GET_SELECTED_VOICE_CHANNEL message";
 		return;
@@ -257,14 +347,7 @@ void DiscordBear::Client::GetSelectedVoiceChannel(std::function<void(VoiceChanne
 
 void DiscordBear::Client::SubscribeOnVoiceChannelJoin(std::function<void(GenericChannelInfo&&)> VoiceJoinEvent)
 {
-	if (!m_pipe.WriteMessage(
-		Message(
-			Message::Opcode::Frame,
-			json{
-				{"nonce", GenerateNonce()},
-				{"cmd", "SUBSCRIBE"},
-				{"evt", "VOICE_CHANNEL_SELECT"}
-			}.dump())))
+	if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "SUBSCRIBE"}, {"evt", "VOICE_CHANNEL_SELECT"}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write GET_SELECTED_VOICE_CHANNEL message";
 		return;
@@ -284,14 +367,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelJoin()
 		}
 	}
 
-	if (!m_pipe.WriteMessage(
-		Message(Message::Opcode::Frame,
-			json
-			{
-				{"nonce", GenerateNonce()},
-				{"cmd", "UNSUBSCRIBE"},
-				{"evt", "VOICE_CHANNEL_SELECT"}
-			}.dump())))
+	if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "UNSUBSCRIBE"}, {"evt", "VOICE_CHANNEL_SELECT"}}.dump())))
 	{
 		LOG(LogSeverity::Severe) << "Could not write GET_SELECTED_VOICE_CHANNEL message";
 		return;
@@ -301,8 +377,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelJoin()
 	m_voiceChannelJoinEvent = nullptr;
 }
 
-void DiscordBear::Client::SubscribeOnVoiceChannelSpeak(
-	const std::vector<ChannelID>& channelIDList,
+void DiscordBear::Client::SubscribeOnVoiceChannelSpeak(const std::vector<ChannelID>& channelIDList,
 	std::function<void(SpeakingEventInfo&&)> speakingStartEvent,
 	std::function<void(SpeakingEventInfo&&)> speakingEndEvent)
 {
@@ -317,35 +392,13 @@ void DiscordBear::Client::SubscribeOnVoiceChannelSpeak(
 
 	for (auto& channelID : channelIDList)
 	{
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "SUBSCRIBE"},
-					{"evt", "SPEAKING_START"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "SUBSCRIBE"}, {"evt", "SPEAKING_START"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write SPEAKING_START message";
 			return;
 		}
 
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "SUBSCRIBE"},
-					{"evt", "SPEAKING_STOP"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "SUBSCRIBE"}, {"evt", "SPEAKING_STOP"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write SPEAKING_STOP message";
 			return;
@@ -370,35 +423,13 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelSpeak()
 
 	for (auto& channelID : m_speakingEventChannelIDList)
 	{
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "UNSUBSCRIBE"},
-					{"evt", "SPEAKING_START"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "UNSUBSCRIBE"}, {"evt", "SPEAKING_START"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write SPEAKING_START message";
 			return;
 		}
 
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "UNSUBSCRIBE"},
-					{"evt", "SPEAKING_STOP"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "UNSUBSCRIBE"}, {"evt", "SPEAKING_STOP"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write SPEAKING_STOP message";
 			return;
@@ -411,9 +442,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelSpeak()
 	m_speakingEndEvent = nullptr;
 }
 
-void DiscordBear::Client::SubscribeOnVoiceChannelEnter(
-	const std::vector<ChannelID>& channelIDList,
-	std::function<void(VoiceUserInfo&&)> voiceEnterEvent)
+void DiscordBear::Client::SubscribeOnVoiceChannelEnter(const std::vector<ChannelID>& channelIDList, std::function<void(VoiceUserInfo&&)> voiceEnterEvent)
 {
 	{
 		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelEnterEventCreateLock);
@@ -426,18 +455,7 @@ void DiscordBear::Client::SubscribeOnVoiceChannelEnter(
 
 	for (auto& channelID : channelIDList)
 	{
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "SUBSCRIBE"},
-					{"evt", "VOICE_STATE_CREATE"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "SUBSCRIBE"}, {"evt", "VOICE_STATE_CREATE"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_CREATE message";
 			return;
@@ -461,18 +479,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelEnter()
 
 	for (auto& channelID : m_enterEventChannelIDList)
 	{
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "UNSUBSCRIBE"},
-					{"evt", "VOICE_STATE_CREATE"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "UNSUBSCRIBE"}, {"evt", "VOICE_STATE_CREATE"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_CREATE message";
 			return;
@@ -484,9 +491,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelEnter()
 	m_voiceChannelEnterEvent = nullptr;
 }
 
-void DiscordBear::Client::SubscribeOnVoiceChannelExit(
-	const std::vector<ChannelID>& channelIDList,
-	std::function<void(VoiceUserInfo&&)> voiceExitEvent)
+void DiscordBear::Client::SubscribeOnVoiceChannelExit(const std::vector<ChannelID>& channelIDList, std::function<void(VoiceUserInfo&&)> voiceExitEvent)
 {
 	{
 		concurrency::reader_writer_lock::scoped_lock_read lock(m_voiceChannelExitEventCreateLock);
@@ -499,18 +504,7 @@ void DiscordBear::Client::SubscribeOnVoiceChannelExit(
 
 	for (auto& channelID : channelIDList)
 	{
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "SUBSCRIBE"},
-					{"evt", "VOICE_STATE_DELETE"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "SUBSCRIBE"}, {"evt", "VOICE_STATE_DELETE"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_DELETE message";
 			return;
@@ -533,18 +527,7 @@ void DiscordBear::Client::UnsubscribeOnVoiceChannelExit()
 
 	for (auto& channelID : m_exitEventChannelIDList)
 	{
-		if (!m_pipe.WriteMessage(
-			Message(Message::Opcode::Frame,
-				json
-				{
-					{"nonce", GenerateNonce()},
-					{"cmd", "UNSUBSCRIBE"},
-					{"evt", "VOICE_STATE_DELETE"},
-					{"args",
-					{
-						{"channel_id", channelID}
-					}}
-				}.dump())))
+		if (!m_pipe.WriteMessage(Message(Message::Opcode::Frame, json{{"nonce", GenerateNonce()}, {"cmd", "UNSUBSCRIBE"}, {"evt", "VOICE_STATE_DELETE"}, {"args", {{"channel_id", channelID}}}}.dump())))
 		{
 			LOG(LogSeverity::Severe) << "Could not write VOICE_STATE_DELETE message";
 			return;
@@ -560,11 +543,7 @@ namespace
 {
 	bool GetGenericUserInfoFromJson(const json& userJson, GenericUserInfo& userInfo)
 	{
-		if (userJson.contains("id") &&
-			userJson.contains("username") &&
-			userJson.contains("discriminator") &&
-			userJson.contains("avatar") &&
-			userJson.contains("bot"))
+		if (userJson.contains("id") && userJson.contains("username") && userJson.contains("discriminator") && userJson.contains("avatar") && userJson.contains("bot"))
 		{
 			userInfo.userID = userJson["id"];
 			userInfo.globalUsername = userJson["username"];
@@ -576,7 +555,7 @@ namespace
 		else
 		{
 			userInfo.valid = false;
-			LOG(LogSeverity::NonSevere) << "Expected generic user message to have params 'id', 'username', 'discriminator', 'avatar', 'bot' raw JSON:" << std::endl << userJson;
+			LOG(LogSeverity::NonSevere) << "Expected generic user message to have params 'id', 'username', 'discriminator', 'avatar', 'bot' raw JSON:" << '\n' << userJson;
 		}
 
 		return userInfo.valid;
@@ -587,16 +566,13 @@ namespace
 		if (!userJson.contains("user"))
 		{
 			userInfo.valid = false;
-			LOG(LogSeverity::NonSevere) << "Expected voice user message to have param 'user', raw JSON:" << std::endl << userJson;
+			LOG(LogSeverity::NonSevere) << "Expected voice user message to have param 'user', raw JSON:" << '\n' << userJson;
 			return false;
 		}
 
 		if (GetGenericUserInfoFromJson(userJson["user"], userInfo))
 		{
-			if (userJson.contains("nick") &&
-				userJson.contains("volume") &&
-				userJson.contains("mute") &&
-				userJson.contains("user"))
+			if (userJson.contains("nick") && userJson.contains("volume") && userJson.contains("mute") && userJson.contains("user"))
 			{
 				userInfo.serverNickname = userJson["nick"];
 				userInfo.volume = userJson["volume"];
@@ -606,7 +582,7 @@ namespace
 			else
 			{
 				userInfo.valid = false;
-				LOG(LogSeverity::NonSevere) << "Expected voice user message to have params 'nick', 'volume', 'mute' raw JSON:" << std::endl << userJson;
+				LOG(LogSeverity::NonSevere) << "Expected voice user message to have params 'nick', 'volume', 'mute' raw JSON:" << '\n' << userJson;
 			}
 		}
 
@@ -615,8 +591,7 @@ namespace
 
 	bool GetGenericChannelInfoFromJson(const json& channelJson, GenericChannelInfo& channelInfo)
 	{
-		if (channelJson.contains("channel_id") &&
-			channelJson.contains("guild_id"))
+		if (channelJson.contains("channel_id") && channelJson.contains("guild_id"))
 		{
 			channelInfo.channelID = channelJson["channel_id"];
 			channelInfo.serverID = channelJson["guild_id"];
@@ -625,7 +600,7 @@ namespace
 		else
 		{
 			channelInfo.valid = false;
-			LOG(LogSeverity::NonSevere) << "Expected voice channel message to have params 'channel_id', 'guild_id', raw JSON:" << std::endl << channelJson;
+			LOG(LogSeverity::NonSevere) << "Expected voice channel message to have params 'channel_id', 'guild_id', raw JSON:" << '\n' << channelJson;
 		}
 
 		return channelInfo.valid;
@@ -633,9 +608,7 @@ namespace
 
 	bool GetVoiceChannelInfoFromJson(const json& channelJson, VoiceChannelInfo& channelInfo)
 	{
-		if (channelJson.contains("id") &&
-			channelJson.contains("guild_id") &&
-			channelJson.contains("voice_states"))
+		if (channelJson.contains("id") && channelJson.contains("guild_id") && channelJson.contains("voice_states"))
 		{
 			channelInfo.channelID = channelJson["id"];
 			channelInfo.serverID = channelJson["guild_id"];
@@ -656,7 +629,7 @@ namespace
 		else
 		{
 			channelInfo.valid = false;
-			LOG(LogSeverity::NonSevere) << "Expected voice channel message to have params 'voice_states', 'id', 'guild_id', raw JSON : " << std::endl << channelJson;
+			LOG(LogSeverity::NonSevere) << "Expected voice channel message to have params 'voice_states', 'id', 'guild_id', raw JSON : " << '\n' << channelJson;
 		}
 
 		return channelInfo.valid;
@@ -664,8 +637,7 @@ namespace
 
 	bool GetSpeakingEventInfoFromJson(const json& channelJson, SpeakingEventInfo& speakingInfo)
 	{
-		if (channelJson.contains("channel_id") &&
-			channelJson.contains("user_id"))
+		if (channelJson.contains("channel_id") && channelJson.contains("user_id"))
 		{
 			speakingInfo.channelID = channelJson["channel_id"];
 			speakingInfo.userID = channelJson["user_id"];
@@ -674,7 +646,7 @@ namespace
 		else
 		{
 			speakingInfo.valid = false;
-			LOG(LogSeverity::NonSevere) << "Expected voice channel message to have params 'channel_id', 'user_id', raw JSON:" << std::endl << channelJson;
+			LOG(LogSeverity::NonSevere) << "Expected voice channel message to have params 'channel_id', 'user_id', raw JSON:" << '\n' << channelJson;
 		}
 
 		return speakingInfo.valid;
@@ -714,9 +686,7 @@ void DiscordBear::Client::Update()
 
 void DiscordBear::Client::HandleMessage(json& responseJson)
 {
-	if (responseJson.contains("cmd") &&
-		responseJson.contains("data") &&
-		responseJson.contains("nonce"))
+	if (responseJson.contains("cmd") && responseJson.contains("data") && responseJson.contains("nonce"))
 	{
 		std::string commandName = responseJson["cmd"];
 		if (commandName == "GET_CHANNEL" || commandName == "GET_SELECTED_VOICE_CHANNEL")
@@ -794,7 +764,7 @@ void DiscordBear::Client::HandleMessage(json& responseJson)
 	}
 	else
 	{
-		LOG(LogSeverity::NonSevere) << "Found message without 'cmd', 'data' or 'nonce' fields, these are required on messages. Raw JSON: " << std::endl << responseJson;
+		LOG(LogSeverity::NonSevere) << "Found message without 'cmd', 'data' or 'nonce' fields, these are required on messages. Raw JSON: " << '\n' << responseJson;
 	}
 }
 
@@ -804,25 +774,52 @@ void DiscordBear::Client::UpdateAsync()
 	{
 		m_asyncUpdateTask = concurrency::task<void>(
 			[this]()
-			{
-				// An exception leaving a PPL task that nobody waits on terminates the process.
-				while (!m_finishUpdating)
 				{
-					try
+					m_workerThreadId = std::this_thread::get_id();
+
+					// Delay before the next reconnect attempt, doubles up to 30s so a long discord outage doesn't spin.
+					DWORD retryDelayMs = 1000;
+
+					// An exception leaving a PPL task that nobody waits on terminates the process.
+					while (!m_finishUpdating)
 					{
-						Update();
-					}
-					catch (const std::exception& e)
-					{
-						LOG(LogSeverity::Severe) << "Discord update threw an exception: " << e.what();
-					}
-					catch (...)
-					{
-						LOG(LogSeverity::Severe) << "Discord update threw an unknown exception";
+						try
+						{
+							if (m_pipe.Connected())
+							{
+								Update();
+							}
+							else if (m_autoReconnect)
+							{
+								if (Reconnect())
+								{
+									retryDelayMs = 1000;
+								}
+								else
+								{
+									// Sleep in short steps so Disconnect() doesn't have to wait out the whole delay.
+									for (DWORD waited = 0; waited < retryDelayMs && !m_finishUpdating; waited += 100)
+									{
+										Sleep(100);
+									}
+
+									retryDelayMs = retryDelayMs * 2 > 30000 ? 30000 : retryDelayMs * 2;
+								}
+							}
+						}
+						catch (const std::exception& e)
+						{
+							LOG(LogSeverity::Severe) << "Discord update threw an exception: " << e.what();
+						}
+						catch (...)
+						{
+							LOG(LogSeverity::Severe) << "Discord update threw an unknown exception";
+						}
+
+						Sleep(33);
 					}
 
-					Sleep(33);
-				}
-			});
+					m_workerThreadId = std::thread::id();
+				});
 	}
 }

@@ -71,7 +71,7 @@ namespace
 	void ReportSkip(const std::string& reason)
 	{
 		++g_skips;
-		std::cout << "[ SKIP ] " << g_currentTest << " - " << reason << std::endl;
+		std::cout << "[ SKIP ] " << g_currentTest << " - " << reason << '\n';
 	}
 }
 
@@ -85,7 +85,7 @@ namespace
 		++g_checks; \
 		if (!(expr)) { \
 			++g_failures; \
-			std::cout << "[ FAIL ] " << __FILE__ << ":" << __LINE__ << " in " << g_currentTest << ": " << #expr << std::endl; \
+			std::cout << "[ FAIL ] " << __FILE__ << ":" << __LINE__ << " in " << g_currentTest << ": " << #expr << '\n'; \
 		} \
 	} while (false)
 
@@ -131,13 +131,7 @@ public:
 	// Fails if real Discord is already holding the pipe; tests should skip in that case.
 	bool Start()
 	{
-		HANDLE probe = CreateFileW(L"\\\\.\\pipe\\discord-ipc-0",
-			GENERIC_READ | GENERIC_WRITE,
-			0,
-			nullptr,
-			OPEN_EXISTING,
-			0,
-			nullptr);
+		HANDLE probe = CreateFileW(L"\\\\.\\pipe\\discord-ipc-0", GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
 
 		if (probe != INVALID_HANDLE_VALUE)
 		{
@@ -145,15 +139,7 @@ public:
 			return false;
 		}
 
-		m_serverPipe = CreateNamedPipeW(
-			L"\\\\.\\pipe\\discord-ipc-0",
-			PIPE_ACCESS_DUPLEX,
-			0,
-			1,
-			65536,
-			65536,
-			0,
-			nullptr);
+		m_serverPipe = CreateNamedPipeW(L"\\\\.\\pipe\\discord-ipc-0", PIPE_ACCESS_DUPLEX, 0, 1, 65536, 65536, 0, nullptr);
 
 		if (m_serverPipe == INVALID_HANDLE_VALUE)
 		{
@@ -212,11 +198,6 @@ public:
 		return message;
 	}
 
-	bool ReceivedCommand(const std::string& cmd, const std::string& evt)
-	{
-		return CountCommand(cmd, evt) > 0;
-	}
-
 	int CountCommand(const std::string& cmd, const std::string& evt)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -235,17 +216,20 @@ public:
 	bool WaitForCommand(const std::string& cmd, const std::string& evt, std::chrono::milliseconds timeout)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
-		return m_cv.wait_for(lock, timeout, [this, &cmd, &evt]
-		{
-			for (const auto& frame : m_history)
-			{
-				if (frame.value("cmd", "") == cmd && frame.value("evt", "") == evt)
+		return m_cv.wait_for(
+			lock,
+			timeout,
+			[this, &cmd, &evt]
 				{
-					return true;
-				}
-			}
-			return false;
-		});
+					for (const auto& frame : m_history)
+					{
+						if (frame.value("cmd", "") == cmd && frame.value("evt", "") == evt)
+						{
+							return true;
+						}
+					}
+					return false;
+				});
 	}
 
 	std::string HandshakeClientId()
@@ -308,10 +292,7 @@ private:
 		unsigned long opcode = 0;
 		unsigned long length = 0;
 
-		if (!ReadAll(&opcode, 4) ||
-			!ReadAll(&length, 4) ||
-			length == 0 ||
-			length > 16 * 1024 * 1024)
+		if (!ReadAll(&opcode, 4) || !ReadAll(&length, 4) || length == 0 || length > 16 * 1024 * 1024)
 		{
 			return std::nullopt;
 		}
@@ -348,27 +329,15 @@ private:
 		}
 		else if (cmd == "AUTHORIZE")
 		{
-			reply = json{
-				{"nonce", parsed.value("nonce", "")},
-				{"evt", "AUTHORIZE"},
-				{"data", {{"code", "test-auth-code"}}}
-			}.dump();
+			reply = json{{"nonce", parsed.value("nonce", "")}, {"evt", "AUTHORIZE"}, {"data", {{"code", "test-auth-code"}}}}.dump();
 		}
 		else if (cmd == "AUTHENTICATE")
 		{
-			reply = json{
-				{"nonce", parsed.value("nonce", "")},
-				{"evt", "AUTHENTICATE"},
-				{"data", json::object()}
-			}.dump();
+			reply = json{{"nonce", parsed.value("nonce", "")}, {"evt", "AUTHENTICATE"}, {"data", json::object()}}.dump();
 		}
 		else if (cmd == "GET_SELECTED_VOICE_CHANNEL")
 		{
-			reply = json{
-				{"cmd", "GET_CHANNEL"},
-				{"nonce", parsed.value("nonce", "")},
-				{"data", m_voiceChannelData}
-			}.dump();
+			reply = json{{"cmd", "GET_CHANNEL"}, {"nonce", parsed.value("nonce", "")}, {"data", m_voiceChannelData}}.dump();
 		}
 		// SUBSCRIBE / UNSUBSCRIBE get no reply.
 
@@ -391,7 +360,7 @@ private:
 
 	HANDLE m_serverPipe = INVALID_HANDLE_VALUE;
 	std::thread m_thread;
-	std::atomic<bool> m_running{ false };
+	std::atomic<bool> m_running{false};
 
 	std::mutex m_mutex;
 	std::condition_variable m_cv;
@@ -423,7 +392,7 @@ namespace
 		PROCESSENTRY32W entry;
 		entry.dwSize = sizeof(entry);
 
-		static const wchar_t* knownNames[] = { L"Discord.exe", L"DiscordPTB.exe", L"DiscordCanary.exe" };
+		static const wchar_t* knownNames[] = {L"Discord.exe", L"DiscordPTB.exe", L"DiscordCanary.exe"};
 		if (Process32FirstW(snapshot, &entry))
 		{
 			do
@@ -480,32 +449,19 @@ namespace
 		return json{
 			{"id", "1234567890"},
 			{"guild_id", "0987654321"},
-			{"voice_states",
 			{
+				"voice_states",
 				{
-					{"user", {{"id", "1"}, {"username", "alice"}, {"discriminator", "0001"}, {"avatar", "a1"}, {"bot", false}}},
-					{"nick", "alice"},
-					{"volume", 100},
-					{"mute", false}
-				},
-				{
-					{"user", {{"id", "2"}, {"username", "bob"}, {"discriminator", "0002"}, {"avatar", "a2"}, {"bot", true}}},
-					{"nick", "bob"},
-					{"volume", 25},
-					{"mute", true}
+					{{"user", {{"id", "1"}, {"username", "alice"}, {"discriminator", "0001"}, {"avatar", "a1"}, {"bot", false}}}, {"nick", "alice"}, {"volume", 100}, {"mute", false}},
+					{{"user", {{"id", "2"}, {"username", "bob"}, {"discriminator", "0002"}, {"avatar", "a2"}, {"bot", true}}}, {"nick", "bob"}, {"volume", 25}, {"mute", true}}
 				}
-			}}
+			}
 		};
 	}
 
 	json MakeVoiceUserData()
 	{
-		return json{
-			{"user", {{"id", "42"}, {"username", "chris"}, {"discriminator", "0007"}, {"avatar", "c1"}, {"bot", false}}},
-			{"nick", "chris"},
-			{"volume", 66},
-			{"mute", false}
-		};
+		return json{{"user", {{"id", "42"}, {"username", "chris"}, {"discriminator", "0007"}, {"avatar", "c1"}, {"bot", false}}}, {"nick", "chris"}, {"volume", 66}, {"mute", false}};
 	}
 
 	// Client::Connect() always reaches GetAuthToken(), which does a real HTTPS call to
@@ -537,7 +493,7 @@ TEST(Message_RoundTrip)
 	DiscordBear::Message message(DiscordBear::Message::Opcode::Frame, std::move(payload));
 
 	CHECK(message.IsValid());
-	CHECK(message.GetHeader()->opcode == DiscordBear::Message::Opcode::Frame);
+	CHECK(message.GetHeader().opcode == DiscordBear::Message::Opcode::Frame);
 	CHECK(message.GetMessageSize() == originalLength);
 	CHECK(message.GetSize() == 8 + originalLength);
 	CHECK(message.GetMessage() == std::string(R"({"cmd":"test","n":42})"));
@@ -656,7 +612,7 @@ TEST(Pipe_ReadMessage_RoundTrip)
 
 	auto message = pipe.ReadMessage();
 	CHECK(message.IsValid());
-	CHECK(message.GetHeader()->opcode == DiscordBear::Message::Opcode::Frame);
+	CHECK(message.GetHeader().opcode == DiscordBear::Message::Opcode::Frame);
 	CHECK(message.GetMessage() == std::string(R"({"pong":true})"));
 
 	pipe.Disconnect();
@@ -715,11 +671,12 @@ TEST(Pipe_ReadMessage_SplitFrame)
 	const size_t splitAt = 8 + payload.size() / 2;
 
 	fake.SendRaw(frame.substr(0, splitAt));
-	std::thread rest([&]
-	{
-		Sleep(100);
-		fake.SendRaw(frame.substr(splitAt));
-	});
+	std::thread rest(
+		[&]
+			{
+				Sleep(100);
+				fake.SendRaw(frame.substr(splitAt));
+			});
 
 	auto message = pipe.ReadMessage();
 	rest.join();
@@ -749,6 +706,157 @@ TEST(Pipe_Disconnect_RejectsSecondDisconnect)
 
 	CHECK(pipe.Disconnect());
 	CHECK(!pipe.Disconnect());
+}
+
+TEST(Pipe_HasMessage_DetectsClosedPeer)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	DiscordBear::Pipe pipe;
+	if (!pipe.Connect())
+	{
+		CHECK(false);
+		return;
+	}
+
+	// Discord quitting, or restarting for an update, closes its end of the pipe.
+	fake.Stop();
+
+	CHECK(!pipe.HasMessage());
+	CHECK(!pipe.Connected());
+
+	// The dead handle is still owned: Disconnect() releases it, but there was no live connection to report.
+	CHECK(!pipe.Disconnect());
+}
+
+TEST(Pipe_ReadMessage_TimesOutWithoutData)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	DiscordBear::Pipe pipe;
+	if (!pipe.Connect())
+	{
+		CHECK(false);
+		return;
+	}
+
+	const auto start = std::chrono::steady_clock::now();
+	auto message = pipe.ReadMessage(std::chrono::milliseconds(200));
+	const auto elapsed = std::chrono::steady_clock::now() - start;
+
+	CHECK(!message.IsValid());
+	CHECK(elapsed >= std::chrono::milliseconds(150));
+	CHECK(elapsed < std::chrono::seconds(5));
+
+	// Nothing was consumed while waiting, so the stream is still good and a late reply reads fine.
+	CHECK(pipe.Connected());
+	const std::string payload = R"({"late":"reply"})";
+	fake.SendFrame(payload);
+	auto late = pipe.ReadMessage(std::chrono::seconds(2));
+	CHECK(late.IsValid());
+	CHECK(late.GetMessage() == payload);
+
+	pipe.Disconnect();
+}
+
+TEST(Pipe_ReadMessage_BreaksWhenPeerCloses)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	DiscordBear::Pipe pipe;
+	if (!pipe.Connect())
+	{
+		CHECK(false);
+		return;
+	}
+
+	std::thread closer([&]
+	{
+		Sleep(100);
+		fake.Stop();
+	});
+
+	// Used to spin forever once the pipe was gone.
+	auto message = pipe.ReadMessage(std::chrono::seconds(10));
+	closer.join();
+
+	CHECK(!message.IsValid());
+	CHECK(!pipe.Connected());
+}
+
+TEST(Pipe_ReadMessage_StopsWhenCancelled)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	std::atomic<bool> cancel{ false };
+	DiscordBear::Pipe pipe;
+	if (!pipe.Connect(&cancel))
+	{
+		CHECK(false);
+		return;
+	}
+
+	std::thread canceller([&]
+	{
+		Sleep(100);
+		cancel = true;
+	});
+
+	const auto start = std::chrono::steady_clock::now();
+	auto message = pipe.ReadMessage(std::chrono::seconds(30));
+	const auto elapsed = std::chrono::steady_clock::now() - start;
+	canceller.join();
+
+	CHECK(!message.IsValid());
+	CHECK(elapsed < std::chrono::seconds(5));
+
+	// Cancelling is not a failure, the pipe is still usable.
+	CHECK(pipe.Connected());
+	pipe.Disconnect();
+}
+
+TEST(Pipe_ReadMessage_OversizedLengthBreaksPipe)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	DiscordBear::Pipe pipe;
+	if (!pipe.Connect())
+	{
+		CHECK(false);
+		return;
+	}
+
+	// A header announcing a huge payload means the stream is out of sync, we must not try to allocate or wait for it.
+	std::string header(8, '\0');
+	const unsigned long opcode = 1;
+	const unsigned long length = 0x7FFFFFFF;
+	memcpy(&header[0], &opcode, 4);
+	memcpy(&header[4], &length, 4);
+	fake.SendRaw(header);
+
+	auto message = pipe.ReadMessage(std::chrono::seconds(2));
+	CHECK(!message.IsValid());
+	CHECK(!pipe.Connected());
 }
 
 // ---------------------------------------------------------------------------
@@ -790,11 +898,12 @@ TEST(Client_GetSelectedVoiceChannel_DispatchesParsedInfo)
 
 	DiscordBear::VoiceChannelInfo received;
 	bool got = false;
-	client.GetSelectedVoiceChannel([&](DiscordBear::VoiceChannelInfo&& info)
-	{
-		received = std::move(info);
-		got = true;
-	});
+	client.GetSelectedVoiceChannel(
+		[&](DiscordBear::VoiceChannelInfo&& info)
+			{
+				received = std::move(info);
+				got = true;
+			});
 
 	// Blocks until the server received the request (its GET_CHANNEL reply is already in the client's buffer).
 	CHECK(fake.WaitForCommand("GET_SELECTED_VOICE_CHANNEL", "", std::chrono::milliseconds(5000)));
@@ -837,20 +946,16 @@ TEST(Client_VoiceChannelJoin_Dispatch)
 
 	DiscordBear::GenericChannelInfo received;
 	bool got = false;
-	client.SubscribeOnVoiceChannelJoin([&](DiscordBear::GenericChannelInfo&& info)
-	{
-		received = std::move(info);
-		got = true;
-	});
+	client.SubscribeOnVoiceChannelJoin(
+		[&](DiscordBear::GenericChannelInfo&& info)
+			{
+				received = std::move(info);
+				got = true;
+			});
 
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "VOICE_CHANNEL_SELECT", std::chrono::milliseconds(5000)));
 
-	fake.SendFrame(json{
-		{"cmd", "DISPATCH"},
-		{"nonce", "join-1"},
-		{"evt", "VOICE_CHANNEL_SELECT"},
-		{"data", {{"channel_id", "111"}, {"guild_id", "222"}}}
-	}.dump());
+	fake.SendFrame(json{{"cmd", "DISPATCH"}, {"nonce", "join-1"}, {"evt", "VOICE_CHANNEL_SELECT"}, {"data", {{"channel_id", "111"}, {"guild_id", "222"}}}}.dump());
 
 	PumpUntil(client, [&] { return got; });
 
@@ -878,35 +983,26 @@ TEST(Client_SpeakingEvents_Dispatch)
 	DiscordBear::SpeakingEventInfo stopped;
 	bool gotStart = false;
 	bool gotStop = false;
-	client.SubscribeOnVoiceChannelSpeak({"ch1"},
+	client.SubscribeOnVoiceChannelSpeak(
+		{"ch1"},
 		[&](DiscordBear::SpeakingEventInfo&& info)
-		{
-			started = std::move(info);
-			gotStart = true;
-		},
+			{
+				started = std::move(info);
+				gotStart = true;
+			},
 		[&](DiscordBear::SpeakingEventInfo&& info)
-		{
-			stopped = std::move(info);
-			gotStop = true;
-		});
+			{
+				stopped = std::move(info);
+				gotStop = true;
+			});
 
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "SPEAKING_START", std::chrono::milliseconds(5000)));
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "SPEAKING_STOP", std::chrono::milliseconds(5000)));
 
-	fake.SendFrame(json{
-		{"cmd", "DISPATCH"},
-		{"nonce", "spk-1"},
-		{"evt", "SPEAKING_START"},
-		{"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}
-	}.dump());
+	fake.SendFrame(json{{"cmd", "DISPATCH"}, {"nonce", "spk-1"}, {"evt", "SPEAKING_START"}, {"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}}.dump());
 	PumpUntil(client, [&] { return gotStart; });
 
-	fake.SendFrame(json{
-		{"cmd", "DISPATCH"},
-		{"nonce", "spk-2"},
-		{"evt", "SPEAKING_STOP"},
-		{"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}
-	}.dump());
+	fake.SendFrame(json{{"cmd", "DISPATCH"}, {"nonce", "spk-2"}, {"evt", "SPEAKING_STOP"}, {"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}}.dump());
 	PumpUntil(client, [&] { return gotStop; });
 
 	CHECK(gotStart);
@@ -934,27 +1030,16 @@ TEST(Client_Update_DispatchesBackToBackFrames)
 
 	bool gotStart = false;
 	bool gotStop = false;
-	client.SubscribeOnVoiceChannelSpeak({"ch1"},
-		[&](DiscordBear::SpeakingEventInfo&&) { gotStart = true; },
-		[&](DiscordBear::SpeakingEventInfo&&) { gotStop = true; });
+	client.SubscribeOnVoiceChannelSpeak({"ch1"}, [&](DiscordBear::SpeakingEventInfo&&) { gotStart = true; }, [&](DiscordBear::SpeakingEventInfo&&) { gotStop = true; });
 
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "SPEAKING_START", std::chrono::milliseconds(5000)));
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "SPEAKING_STOP", std::chrono::milliseconds(5000)));
 
 	// Discord can deliver several events before the client next reads; neither may be dropped.
 	fake.SendRaw(
-		EncodeFrame(1 /*Frame*/, json{
-			{"cmd", "DISPATCH"},
-			{"nonce", "b2b-1"},
-			{"evt", "SPEAKING_START"},
-			{"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}
-		}.dump()) +
-		EncodeFrame(1 /*Frame*/, json{
-			{"cmd", "DISPATCH"},
-			{"nonce", "b2b-2"},
-			{"evt", "SPEAKING_STOP"},
-			{"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}
-		}.dump()));
+		EncodeFrame(1 /*Frame*/, json{{"cmd", "DISPATCH"}, {"nonce", "b2b-1"}, {"evt", "SPEAKING_START"}, {"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}}.dump()) + EncodeFrame(
+			1 /*Frame*/,
+			json{{"cmd", "DISPATCH"}, {"nonce", "b2b-2"}, {"evt", "SPEAKING_STOP"}, {"data", {{"channel_id", "ch1"}, {"user_id", "u1"}}}}.dump()));
 
 	PumpUntil(client, [&] { return gotStart && gotStop; });
 
@@ -977,34 +1062,28 @@ TEST(Client_VoiceStateEnterExit_Dispatch)
 	DiscordBear::VoiceUserInfo exited;
 	bool gotEnter = false;
 	bool gotExit = false;
-	client.SubscribeOnVoiceChannelEnter({"ch1"}, [&](DiscordBear::VoiceUserInfo&& info)
-	{
-		entered = std::move(info);
-		gotEnter = true;
-	});
-	client.SubscribeOnVoiceChannelExit({"ch1"}, [&](DiscordBear::VoiceUserInfo&& info)
-	{
-		exited = std::move(info);
-		gotExit = true;
-	});
+	client.SubscribeOnVoiceChannelEnter(
+		{"ch1"},
+		[&](DiscordBear::VoiceUserInfo&& info)
+			{
+				entered = std::move(info);
+				gotEnter = true;
+			});
+	client.SubscribeOnVoiceChannelExit(
+		{"ch1"},
+		[&](DiscordBear::VoiceUserInfo&& info)
+			{
+				exited = std::move(info);
+				gotExit = true;
+			});
 
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "VOICE_STATE_CREATE", std::chrono::milliseconds(5000)));
 	CHECK(fake.WaitForCommand("SUBSCRIBE", "VOICE_STATE_DELETE", std::chrono::milliseconds(5000)));
 
-	fake.SendFrame(json{
-		{"cmd", "DISPATCH"},
-		{"nonce", "vs-1"},
-		{"evt", "VOICE_STATE_CREATE"},
-		{"data", MakeVoiceUserData()}
-	}.dump());
+	fake.SendFrame(json{{"cmd", "DISPATCH"}, {"nonce", "vs-1"}, {"evt", "VOICE_STATE_CREATE"}, {"data", MakeVoiceUserData()}}.dump());
 	PumpUntil(client, [&] { return gotEnter; });
 
-	fake.SendFrame(json{
-		{"cmd", "DISPATCH"},
-		{"nonce", "vs-2"},
-		{"evt", "VOICE_STATE_DELETE"},
-		{"data", MakeVoiceUserData()}
-	}.dump());
+	fake.SendFrame(json{{"cmd", "DISPATCH"}, {"nonce", "vs-2"}, {"evt", "VOICE_STATE_DELETE"}, {"data", MakeVoiceUserData()}}.dump());
 	PumpUntil(client, [&] { return gotExit; });
 
 	CHECK(gotEnter);
@@ -1071,10 +1150,11 @@ TEST(Client_Update_IgnoresUnknownNonce)
 	ConnectForTest(client);
 
 	bool got = false;
-	client.GetSelectedVoiceChannel([&](DiscordBear::VoiceChannelInfo&&)
-	{
-		got = true;
-	});
+	client.GetSelectedVoiceChannel(
+		[&](DiscordBear::VoiceChannelInfo&&)
+			{
+				got = true;
+			});
 
 	// The fake auto-replies to the request above (matching nonce) - that must fire the callback.
 	CHECK(fake.WaitForCommand("GET_SELECTED_VOICE_CHANNEL", "", std::chrono::milliseconds(5000)));
@@ -1083,15 +1163,68 @@ TEST(Client_Update_IgnoresUnknownNonce)
 
 	// A reply for a nonce we never sent: Update must not crash and must not fire the callback again.
 	got = false;
-	fake.SendFrame(json{
-		{"cmd", "GET_CHANNEL"},
-		{"nonce", "unknown-nonce"},
-		{"data", json::object()}
-	}.dump());
+	fake.SendFrame(json{{"cmd", "GET_CHANNEL"}, {"nonce", "unknown-nonce"}, {"data", json::object()}}.dump());
 
 	PumpUntil(client, [&] { return got; }, 25); // ~0.5s: enough time to surface a spurious dispatch
 
 	CHECK(!got);
+}
+
+TEST(Client_Disconnect_StopsAsyncWorker)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	std::atomic<int> callbacks{ 0 }; // declared before the client so it outlives the worker
+	DiscordBear::Client client("test-app-id-000", "test-secret");
+	ConnectForTest(client);
+
+	client.GetSelectedVoiceChannel([&](DiscordBear::VoiceChannelInfo&&)
+	{
+		++callbacks;
+	});
+	client.UpdateAsync();
+
+	for (int i = 0; i < 250 && callbacks == 0; ++i)
+	{
+		Sleep(20);
+	}
+	CHECK(callbacks == 1);
+
+	// Disconnect() has to wait for the worker before closing the pipe, and must not hang doing so.
+	const auto start = std::chrono::steady_clock::now();
+	client.Disconnect();
+	CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds(5));
+}
+
+TEST(Client_Disconnect_FromCallbackDoesNotDeadlock)
+{
+	FakeDiscord fake;
+	if (!StartFakeOrSkip(fake))
+	{
+		return;
+	}
+
+	std::atomic<bool> done{ false };
+	DiscordBear::Client client("test-app-id-000", "test-secret");
+	ConnectForTest(client);
+
+	// Callbacks run on the async worker and Disconnect() waits for that worker, so it must not wait on itself.
+	client.GetSelectedVoiceChannel([&](DiscordBear::VoiceChannelInfo&&)
+	{
+		client.Disconnect();
+		done = true;
+	});
+	client.UpdateAsync();
+
+	for (int i = 0; i < 250 && !done; ++i)
+	{
+		Sleep(20);
+	}
+	CHECK(done);
 }
 
 // ---------------------------------------------------------------------------
@@ -1102,22 +1235,21 @@ int main()
 {
 	// Print only severe logs; they surface real problems in a failing test.
 	DiscordBear::LogFn = [](LogSeverity severity, const char* message)
-	{
-		if (severity >= LogSeverity::Severe)
 		{
-			std::cout << "[log] " << message << std::endl;
-		}
-	};
+			if (severity >= LogSeverity::Severe)
+			{
+				std::cout << "[log] " << message << '\n';
+			}
+		};
 
 	for (const auto& test : TestRegistry())
 	{
 		g_currentTest = test.name;
-		std::cout << "[ RUN  ] " << test.name << std::endl;
+		std::cout << "[ RUN  ] " << test.name << '\n';
 		test.fn();
 	}
 
-	std::cout << "=== " << TestRegistry().size() << " tests, " << g_checks << " checks, "
-		<< g_failures << " failures, " << g_skips << " skipped ===" << std::endl;
+	std::cout << "=== " << TestRegistry().size() << " tests, " << g_checks << " checks, " << g_failures << " failures, " << g_skips << " skipped ===" << '\n';
 
 	return g_failures == 0 ? 0 : 1;
 }
