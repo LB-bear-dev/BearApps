@@ -36,6 +36,8 @@ public:
 	void UpdateAsync() override;
 
 private:
+	void HandleMessage(json& responseJson);
+
 	Pipe m_pipe;
 	const std::string m_appID;
 	const std::string m_appSecret;

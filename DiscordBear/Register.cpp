@@ -28,52 +28,81 @@ bool DiscordBear::RegisterAppToDiscord(const std::string& appID)
 		return false;
 	}
 
-	LSTATUS result = RegSetKeyValueA(key, nullptr, nullptr, REG_SZ, protocolDescription.str().c_str(), (DWORD)protocolDescription.str().length());
-	if (FAILED(result))
+	struct KeyGuard
 	{
-		LOG(LogSeverity::Severe) << "Could not set description " << protocolDescription.str() << " so we can't authenticate";
+		HKEY key;
+		~KeyGuard() { RegCloseKey(key); }
+	} keyGuard{ key };
+
+	// Registry calls return Win32 error codes (positive), so FAILED() would never trip on them.
+	const auto succeeded = [](LSTATUS result, const char* what)
+	{
+		if (result != ERROR_SUCCESS)
+		{
+			LOG(LogSeverity::Severe) << "Could not set " << what << ", error " << result << " so we can't authenticate";
+			return false;
+		}
+
+		return true;
+	};
+
+	const std::string description = protocolDescription.str();
+	if (!succeeded(RegSetKeyValueA(key, nullptr, nullptr, REG_SZ, description.c_str(), (DWORD)description.length() + 1), "description"))
+	{
 		return false;
 	}
 
 	char urlProtocol = 0;
-	result = RegSetKeyValueA(key, nullptr, "URL Protocol", REG_SZ, &urlProtocol, sizeof(urlProtocol));
-	if (FAILED(result))
+	if (!succeeded(RegSetKeyValueA(key, nullptr, "URL Protocol", REG_SZ, &urlProtocol, sizeof(urlProtocol)), "URL Protocol"))
 	{
-		LOG(LogSeverity::Severe) << "Could not set URL Protocol " << protocolDescription.str() << " so we can't authenticate";
 		return false;
 	}
 
-	result = RegSetKeyValueA(key, "DefaultIcon", nullptr, REG_SZ, exeFilePath, (exeLen + 1) * sizeof(char));
-	if (FAILED(result))
+	if (!succeeded(RegSetKeyValueA(key, "DefaultIcon", nullptr, REG_SZ, exeFilePath, (exeLen + 1) * sizeof(char)), "Default Icon"))
 	{
-		LOG(LogSeverity::Severe) << "Could not set Default Icon " << protocolDescription.str() << " so we can't authenticate";
 		return false;
 	}
 
-	result = RegSetKeyValueA(key, "shell\\open\\command", nullptr, REG_SZ, exeFilePath, (exeLen + 1) * sizeof(char));
-	if (FAILED(result))
+	if (!succeeded(RegSetKeyValueA(key, "shell\\open\\command", nullptr, REG_SZ, exeFilePath, (exeLen + 1) * sizeof(char)), "open command"))
 	{
-		LOG(LogSeverity::Severe) << "Could not set open command " << protocolDescription.str() << " so we can't authenticate";
 		return false;
 	}
-	
+
 	LOG(LogSeverity::Info) << "Registered app with client ID " << appID << " to discord";
-	RegCloseKey(key);
 	return true;
 }
 
-DiscordBear::OAuthParams DiscordBear::GetAuthToken(const std::string& appID, const std::string& clientSecret, const std::string& code)
+std::optional<DiscordBear::OAuthParams> DiscordBear::GetAuthToken(const std::string& appID, const std::string& clientSecret, const std::string& code)
 {
-	web::http::client::http_client client(U("https://discord.com/api/oauth2/"));
+	try
+	{
+		web::http::client::http_client client(U("https://discord.com/api/oauth2/"));
 
-	utf8stringstream oauthString;
-	oauthString << "grant_type=authorization_code&client_id=" << appID << "&code=" << code << "&client_secret=" << clientSecret;
+		utf8stringstream oauthString;
+		oauthString << "grant_type=authorization_code&client_id=" << appID << "&code=" << code << "&client_secret=" << clientSecret;
 
-	LOG(LogSeverity::Info) << "Sending OAuth info: " << oauthString.str();
+		// The request body holds the client secret and auth code, never log it.
+		LOG(LogSeverity::Info) << "Exchanging authorization code for client ID " << appID;
 
-	utf8string response = client.request(web::http::methods::POST, "token", oauthString.str(), "application/x-www-form-urlencoded").get().extract_utf8string().get();
-	json parsedResponse = json::parse(response);
-	
+		auto httpResponse = client.request(web::http::methods::POST, "token", oauthString.str(), "application/x-www-form-urlencoded").get();
+		json parsedResponse = json::parse(httpResponse.extract_utf8string().get(), nullptr, false);
 
-	return { parsedResponse["access_token"], parsedResponse["expires_in"], parsedResponse["refresh_token"]};
+		if (httpResponse.status_code() != web::http::status_codes::OK ||
+			parsedResponse.is_discarded() ||
+			!parsedResponse.contains("access_token"))
+		{
+			LOG(LogSeverity::Severe) << "Token exchange failed, HTTP status " << httpResponse.status_code();
+			return std::nullopt;
+		}
+
+		return OAuthParams{
+			parsedResponse.value("access_token", ""),
+			parsedResponse.value("expires_in", 0ul),
+			parsedResponse.value("refresh_token", "") };
+	}
+	catch (const std::exception& e)
+	{
+		LOG(LogSeverity::Severe) << "Token exchange threw an exception: " << e.what();
+		return std::nullopt;
+	}
 }

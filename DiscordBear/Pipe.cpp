@@ -2,8 +2,33 @@
 #include "Pipe.h"
 #include "Message.h"
 #include "Log.h"
+
 namespace DiscordBear
 {
+namespace
+{
+	// Largest frame we accept; anything bigger means the stream is out of sync.
+	constexpr unsigned long MaxFrameLength = 16 * 1024 * 1024;
+
+	// A pipe read can return fewer bytes than asked for, so keep reading until we have them all.
+	// Blocks until the bytes arrive, and fails if the pipe breaks.
+	bool ReadExact(HANDLE pipe, char* buffer, DWORD size)
+	{
+		DWORD total = 0;
+		while (total < size)
+		{
+			DWORD read = 0;
+			if (!ReadFile(pipe, buffer + total, size - total, &read, nullptr))
+			{
+				LOG(LogSeverity::Severe) << "Did not successfully recieve message, error code: " << GetLastError();
+				return false;
+			}
+			total += read;
+		}
+		return true;
+	}
+}
+
 	bool Pipe::Connect()
 	{
 		// Discord may start, or auto-restart (updates), after us. Wait for a pipe to appear.
@@ -116,16 +141,13 @@ namespace DiscordBear
 	{
 		if (!Connected())
 		{
-			LOG(LogSeverity::Severe) << "Pipe is not connected, message " << message.GetMessage() << " will not be sent";
+			LOG(LogSeverity::Severe) << "Pipe is not connected, message will not be sent";
 			return false;
 		}
 
-		LOG(LogSeverity::Verbose) << "Attempting to write message "
-#if defined(_DEBUG)
-			<< message.GetMessage();
-#else
-			;
-#endif
+		// Frames can carry the client secret, auth code and access token, so only log opcode and size.
+		LOG(LogSeverity::Verbose) << "Attempting to write message with opcode "
+			<< static_cast<unsigned long>(message.GetHeader()->opcode) << ", " << message.GetMessageSize() << " bytes";
 
 		DWORD cbWrite = 0;
 		auto success = WriteFile(
@@ -137,7 +159,7 @@ namespace DiscordBear
 
 		if (!success)
 		{
-			LOG(LogSeverity::Severe) << "Message " << message.GetMessage() << " not sent successfully, error code: " << GetLastError();
+			LOG(LogSeverity::Severe) << "Message not sent successfully, error code: " << GetLastError();
 		}
 		else
 		{
@@ -181,50 +203,31 @@ namespace DiscordBear
 			return false;
 		}
 
-		DWORD bytesToRead = 0;
-
-		while (bytesToRead == 0)
-		{
-			PeekNamedPipe(
-				m_pipe,
-				nullptr,
-				0,
-				nullptr,
-				&bytesToRead,
-				nullptr);
-
-			static constexpr auto sleepTime = std::chrono::milliseconds(10);
-			std::this_thread::sleep_for(sleepTime);
-		}
-
-		Message message(bytesToRead);
-
+		// The pipe is a byte stream: it can hold several frames, or only part of one.
+		// Read the header first, then exactly the payload length it announces, so each call returns one frame.
 		LOG(LogSeverity::Verbose) << "Attempting to read message from pipe";
-		DWORD cbRead = 0;
-		auto success = ReadFile(
-			m_pipe,
-			message.m_packedData.get(),
-			message.m_byteSize,
-			&cbRead,
-			nullptr);
-
-		((char*)message.GetData())[bytesToRead] = 0;
-
-		if (!success)
+		Message::Header header{};
+		if (!ReadExact(m_pipe, reinterpret_cast<char*>(&header), sizeof(header)))
 		{
-			LOG(LogSeverity::Severe) << "Did not successfully recieve message, error code: " << GetLastError();
+			return false;
+		}
+
+		if (header.length == 0 || header.length > MaxFrameLength)
+		{
+			LOG(LogSeverity::Severe) << "Message header has invalid length " << header.length << ", dropping it";
+			return false;
+		}
+
+		Message message(static_cast<unsigned long>(sizeof(header)) + header.length);
+		memcpy(message.m_packedData.get(), &header, sizeof(header));
+
+		if (!ReadExact(m_pipe, message.m_packedData.get() + sizeof(header), header.length))
+		{
 			message.Clear();
-		}
-		else
-		{
-			LOG(LogSeverity::Verbose) << "Read message from pipe " 
-#if defined(_DEBUG)
-				<< message.GetMessage();
-#else
-				;
-#endif
+			return message;
 		}
 
+		LOG(LogSeverity::Verbose) << "Read message from pipe, " << message.GetSize() << " bytes";
 		return message;
 	}
 }

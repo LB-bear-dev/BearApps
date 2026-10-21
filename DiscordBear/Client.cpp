@@ -178,32 +178,47 @@ bool DiscordBear::Client::Connect()
 {
 	LOG(LogSeverity::Info) << "Connecting discord client";
 
-	if (!RegisterAppToDiscord(m_appID))
+	// Handshake/Authorize/Authenticate parse JSON and the token exchange does network IO, either can throw.
+	// This is a bool API called by the host, so exceptions must not escape it.
+	try
 	{
-		return false;
+		if (!RegisterAppToDiscord(m_appID))
+		{
+			return false;
+		}
+
+		if (!m_pipe.Connect())
+		{
+			LOG(LogSeverity::Severe) << "Could not connect to discord pipe, client is not connected.";
+			return false;
+		}
+
+		if (!Handshake(m_pipe, m_appID))
+		{
+			return false;
+		}
+
+		std::string authorizationCode;
+		if (!Authorize(m_pipe, m_appID, authorizationCode))
+		{
+			return false;
+		}
+
+		const auto params = GetAuthToken(m_appID, m_appSecret, authorizationCode);
+		if (!params)
+		{
+			LOG(LogSeverity::Severe) << "Could not get an auth token from discord, client is not connected.";
+			return false;
+		}
+
+		if (!Authenticate(m_pipe, params->token, m_appID))
+		{
+			return false;
+		}
 	}
-
-	if (!m_pipe.Connect())
+	catch (const std::exception& e)
 	{
-		LOG(LogSeverity::Severe) << "Could not connect to discord pipe, client is not connected.";
-		return false;
-	}
-
-	if (!Handshake(m_pipe, m_appID))
-	{
-		return false;
-	}
-
-	std::string authorizationCode;
-	if (!Authorize(m_pipe, m_appID, authorizationCode))
-	{
-		return false;
-	}
-
-	OAuthParams params = GetAuthToken(m_appID, m_appSecret.c_str(), authorizationCode.c_str());
-
-	if (!Authenticate(m_pipe, params.token, m_appID))
-	{
+		LOG(LogSeverity::Severe) << "Discord client threw an exception while connecting: " << e.what();
 		return false;
 	}
 
@@ -569,6 +584,13 @@ namespace
 
 	bool GetVoiceUserInfoFromJson(const json& userJson, VoiceUserInfo& userInfo)
 	{
+		if (!userJson.contains("user"))
+		{
+			userInfo.valid = false;
+			LOG(LogSeverity::NonSevere) << "Expected voice user message to have param 'user', raw JSON:" << std::endl << userJson;
+			return false;
+		}
+
 		if (GetGenericUserInfoFromJson(userJson["user"], userInfo))
 		{
 			if (userJson.contains("nick") &&
@@ -671,90 +693,108 @@ void DiscordBear::Client::Update()
 			return;
 		}
 
-		json responseJson = json::parse(response.GetMessage());
-
-		if (responseJson.contains("cmd") &&
-			responseJson.contains("data") &&
-			responseJson.contains("nonce"))
+		json responseJson = json::parse(response.GetMessage(), nullptr, false);
+		if (responseJson.is_discarded() || !responseJson.is_object())
 		{
-			std::string commandName = responseJson["cmd"];
-			if (commandName == "GET_CHANNEL" || commandName == "GET_SELECTED_VOICE_CHANNEL")
+			LOG(LogSeverity::NonSevere) << "Found a message that was not a JSON object, dropping it";
+			continue;
+		}
+
+		// Missing or wrongly typed fields throw from the json conversions, one bad message shouldn't kill the update loop.
+		try
+		{
+			HandleMessage(responseJson);
+		}
+		catch (const std::exception& e)
+		{
+			LOG(LogSeverity::NonSevere) << "Could not handle message: " << e.what();
+		}
+	}
+}
+
+void DiscordBear::Client::HandleMessage(json& responseJson)
+{
+	if (responseJson.contains("cmd") &&
+		responseJson.contains("data") &&
+		responseJson.contains("nonce"))
+	{
+		std::string commandName = responseJson["cmd"];
+		if (commandName == "GET_CHANNEL" || commandName == "GET_SELECTED_VOICE_CHANNEL")
+		{
+			std::string nonce = responseJson["nonce"];
+			auto callback = m_nonceToSelectedVoiceChannelResponses[nonce];
+			if (callback)
 			{
-				std::string nonce = responseJson["nonce"];
-				auto callback = m_nonceToSelectedVoiceChannelResponses[nonce];
-				if (callback)
-				{
-					VoiceChannelInfo info;
-					GetVoiceChannelInfoFromJson(responseJson["data"], info);
-					callback(std::move(info));
+				VoiceChannelInfo info;
+				GetVoiceChannelInfoFromJson(responseJson["data"], info);
+				callback(std::move(info));
 
-					//deletion is unsafe, so if we do actually take care of this message we need to lock just when we are doing the delete.
-					concurrency::reader_writer_lock::scoped_lock lock(m_nonceToSelectedVoiceChannelResponsesDeleteLock);
-					m_nonceToSelectedVoiceChannelResponses.unsafe_erase(nonce);
-				}
-				else
-				{
-					LOG(LogSeverity::NonSevere) << "Found GET_CHANNEL message with nonce '" << nonce << "' but there was no response available";
-				}
-			}
-			else if (commandName == "DISPATCH")
-			{
-				std::string eventName = responseJson["evt"];
-				{
-					concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelJoinEventCreateLock);
-					if (eventName == "VOICE_CHANNEL_SELECT" && m_voiceChannelJoinEvent)
-					{
-						GenericChannelInfo channelInfo;
-						GetGenericChannelInfoFromJson(responseJson["data"], channelInfo);
-						m_voiceChannelJoinEvent(std::move(channelInfo));
-					}
-				}
-
-				{
-					concurrency::reader_writer_lock::scoped_lock lock(m_speakingEventCreateLock);
-					if (eventName == "SPEAKING_START" && m_speakingStartEvent)
-					{
-						SpeakingEventInfo speakingInfo;
-						GetSpeakingEventInfoFromJson(responseJson["data"], speakingInfo);
-						m_speakingStartEvent(std::move(speakingInfo));
-					}
-					if (eventName == "SPEAKING_STOP" && m_speakingEndEvent)
-					{
-						SpeakingEventInfo speakingInfo;
-						GetSpeakingEventInfoFromJson(responseJson["data"], speakingInfo);
-						m_speakingEndEvent(std::move(speakingInfo));
-					}
-				}
-
-				{
-					concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelEnterEventCreateLock);
-					if (eventName == "VOICE_STATE_CREATE" && m_voiceChannelEnterEvent)
-					{
-						VoiceUserInfo voiceUserInfo;
-						GetVoiceUserInfoFromJson(responseJson["data"], voiceUserInfo);
-						m_voiceChannelEnterEvent(std::move(voiceUserInfo));
-					}
-				}
-
-				{
-					concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelExitEventCreateLock);
-					if (eventName == "VOICE_STATE_DELETE" && m_voiceChannelExitEvent)
-					{
-						VoiceUserInfo voiceUserInfo;
-						GetVoiceUserInfoFromJson(responseJson["data"], voiceUserInfo);
-						m_voiceChannelExitEvent(std::move(voiceUserInfo));
-					}
-				}
+				//deletion is unsafe, so if we do actually take care of this message we need to lock just when we are doing the delete.
+				concurrency::reader_writer_lock::scoped_lock lock(m_nonceToSelectedVoiceChannelResponsesDeleteLock);
+				m_nonceToSelectedVoiceChannelResponses.unsafe_erase(nonce);
 			}
 			else
 			{
-				LOG(LogSeverity::Info) << "Message with command name '" << commandName << "' recieved but no callback registered to handle it";
+				LOG(LogSeverity::NonSevere) << "Found GET_CHANNEL message with nonce '" << nonce << "' but there was no response available";
+			}
+		}
+		else if (commandName == "DISPATCH")
+		{
+			std::string eventName = responseJson["evt"];
+			{
+				concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelJoinEventCreateLock);
+				if (eventName == "VOICE_CHANNEL_SELECT" && m_voiceChannelJoinEvent)
+				{
+					GenericChannelInfo channelInfo;
+					GetGenericChannelInfoFromJson(responseJson["data"], channelInfo);
+					m_voiceChannelJoinEvent(std::move(channelInfo));
+				}
+			}
+
+			{
+				concurrency::reader_writer_lock::scoped_lock lock(m_speakingEventCreateLock);
+				if (eventName == "SPEAKING_START" && m_speakingStartEvent)
+				{
+					SpeakingEventInfo speakingInfo;
+					GetSpeakingEventInfoFromJson(responseJson["data"], speakingInfo);
+					m_speakingStartEvent(std::move(speakingInfo));
+				}
+				if (eventName == "SPEAKING_STOP" && m_speakingEndEvent)
+				{
+					SpeakingEventInfo speakingInfo;
+					GetSpeakingEventInfoFromJson(responseJson["data"], speakingInfo);
+					m_speakingEndEvent(std::move(speakingInfo));
+				}
+			}
+
+			{
+				concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelEnterEventCreateLock);
+				if (eventName == "VOICE_STATE_CREATE" && m_voiceChannelEnterEvent)
+				{
+					VoiceUserInfo voiceUserInfo;
+					GetVoiceUserInfoFromJson(responseJson["data"], voiceUserInfo);
+					m_voiceChannelEnterEvent(std::move(voiceUserInfo));
+				}
+			}
+
+			{
+				concurrency::reader_writer_lock::scoped_lock lock(m_voiceChannelExitEventCreateLock);
+				if (eventName == "VOICE_STATE_DELETE" && m_voiceChannelExitEvent)
+				{
+					VoiceUserInfo voiceUserInfo;
+					GetVoiceUserInfoFromJson(responseJson["data"], voiceUserInfo);
+					m_voiceChannelExitEvent(std::move(voiceUserInfo));
+				}
 			}
 		}
 		else
 		{
-			LOG(LogSeverity::NonSevere) << "Found message without 'cmd', 'data' or 'nonce' fields, these are required on messages. Raw JSON: " << std::endl << responseJson;
+			LOG(LogSeverity::Info) << "Message with command name '" << commandName << "' recieved but no callback registered to handle it";
 		}
+	}
+	else
+	{
+		LOG(LogSeverity::NonSevere) << "Found message without 'cmd', 'data' or 'nonce' fields, these are required on messages. Raw JSON: " << std::endl << responseJson;
 	}
 }
 
@@ -765,9 +805,22 @@ void DiscordBear::Client::UpdateAsync()
 		m_asyncUpdateTask = concurrency::task<void>(
 			[this]()
 			{
+				// An exception leaving a PPL task that nobody waits on terminates the process.
 				while (!m_finishUpdating)
 				{
-					Update();
+					try
+					{
+						Update();
+					}
+					catch (const std::exception& e)
+					{
+						LOG(LogSeverity::Severe) << "Discord update threw an exception: " << e.what();
+					}
+					catch (...)
+					{
+						LOG(LogSeverity::Severe) << "Discord update threw an unknown exception";
+					}
+
 					Sleep(33);
 				}
 			});

@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 
 namespace DiscordBear
 {
@@ -10,5 +11,5 @@ namespace DiscordBear
 	};
 
 	bool RegisterAppToDiscord(const std::string& appID);
-	OAuthParams GetAuthToken(const std::string& appID, const std::string& clientSecret, const std::string& code);
+	std::optional<OAuthParams> GetAuthToken(const std::string& appID, const std::string& clientSecret, const std::string& code);
 }
