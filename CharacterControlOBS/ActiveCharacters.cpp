@@ -7,7 +7,7 @@ std::optional<std::filesystem::path> CharacterControlOBS::GetGlobalSettingsPath(
 {
 	try
 	{
-		char documentsFolder[MAX_PATH] = { 0 };
+		char documentsFolder[MAX_PATH] = {0};
 		HRESULT result = SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, documentsFolder);
 
 		if (SUCCEEDED(result))
@@ -21,6 +21,7 @@ std::optional<std::filesystem::path> CharacterControlOBS::GetGlobalSettingsPath(
 	}
 	catch (...)
 	{
+		error_("Could not build the path to the 'OBSCharacterSettings' folder.");
 	}
 
 	return {};
@@ -29,9 +30,8 @@ std::optional<std::filesystem::path> CharacterControlOBS::GetGlobalSettingsPath(
 
 CharacterControlOBS::ActiveCharacters CharacterControlOBS::ActiveCharacters::s_singleton = CharacterControlOBS::ActiveCharacters();
 
-CharacterControlOBS::ActiveCharacters::ActiveCharacters(): m_path(GetGlobalSettingsPath().value_or(""))
-{
-}
+CharacterControlOBS::ActiveCharacters::ActiveCharacters() : m_path(GetGlobalSettingsPath().value_or(""))
+{}
 
 CharacterControlOBS::ActiveCharacters& CharacterControlOBS::ActiveCharacters::Get()
 {

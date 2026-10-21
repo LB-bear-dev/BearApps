@@ -3,9 +3,8 @@
 
 using namespace CharacterControlRender;
 
-CharacterControlRender::ImageLayer::ImageLayer() : m_layerName(""), m_active(true), m_translation({ 0,0 }), m_scale({ 1,1 }), m_rotation(0)
-{
-}
+CharacterControlRender::ImageLayer::ImageLayer() : m_layerName(""), m_active(true), m_translation({0, 0}), m_scale({1, 1}), m_rotation(0)
+{}
 
 void CharacterControlRender::ImageLayer::CreateChildLayer(STRIDR name)
 {
@@ -16,7 +15,7 @@ void CharacterControlRender::ImageLayer::CreateChildLayer(STRIDR name)
 
 void CharacterControlRender::ImageLayer::CreateSlot(STRIDR slot)
 {
-	m_slotNames.push_back({ slot, "" });
+	m_slotNames.push_back({slot, ""});
 	for (ImageLayer& layer : m_childLayersByZOrder)
 	{
 		layer.CreateSlot(slot);
@@ -78,7 +77,7 @@ void CharacterControlRender::ImageLayer::Render(gs_effect_t* effect) const
 			gs_eparam_t* param = gs_effect_get_param_by_name(effect, "image");
 			gs_effect_set_texture_srgb(param, texture);
 
-			gs_draw_sprite(texture, 0 ,image->cx, image->cy);
+			gs_draw_sprite(texture, 0, image->cx, image->cy);
 			gs_blend_state_pop();
 
 			gs_enable_framebuffer_srgb(previous);
@@ -95,10 +94,13 @@ void CharacterControlRender::ImageLayer::Render(gs_effect_t* effect) const
 
 CharacterControlRender::ImageLayer* CharacterControlRender::ImageLayer::GetLayerByName(STRIDR name)
 {
-	auto foundLayer = std::find_if(m_childLayersByZOrder.begin(), m_childLayersByZOrder.end(), [&name](ImageLayer& layer)
-		{
-			return layer.m_layerName == name;
-		});
+	auto foundLayer = std::find_if(
+		m_childLayersByZOrder.begin(),
+		m_childLayersByZOrder.end(),
+		[&name](ImageLayer& layer)
+			{
+				return layer.m_layerName == name;
+			});
 
 	if (foundLayer == m_childLayersByZOrder.end())
 	{
@@ -137,7 +139,7 @@ void CharacterControlRender::ImageLayer::SetSlot(STRIDR slot, STRIDR name)
 
 	for (auto& slotName : m_slotNames)
 	{
-		for (auto index = imageNames.begin(); index != imageNames.end(); )
+		for (auto index = imageNames.begin(); index != imageNames.end();)
 		{
 			if (index->find(slotName.name))
 			{

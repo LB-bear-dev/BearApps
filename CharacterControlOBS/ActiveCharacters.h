@@ -19,6 +19,7 @@ namespace CharacterControlOBS
 		void RemoveActiveCharacter(std::string name);
 
 		Character* GetActiveCharacter(std::string name);
+
 	private:
 		static ActiveCharacters s_singleton;
 

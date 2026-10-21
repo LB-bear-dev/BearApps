@@ -19,12 +19,12 @@ namespace DiscordBear
 			unsigned long length;
 		};
 
-		Message(Opcode opCode, std::string&& message);
+		Message(Opcode opCode, const std::string& message);
 
 		unsigned long GetSize() const;
 		unsigned long GetMessageSize() const;
 
-		const Header* GetHeader() const;
+		Header GetHeader() const;
 		std::string GetMessage() const;
 		const void* GetData() const;
 

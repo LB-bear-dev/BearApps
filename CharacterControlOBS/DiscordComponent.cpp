@@ -51,48 +51,46 @@ namespace
 
 			m_discordClient = DiscordBear::GetDiscordClient(ID, Secret);
 			blog(LOG_WARNING, "Getting Discord client");
-			DiscordBear::SetLogFn([](LogSeverity severity, const char* message) {
-				blog(LOG_WARNING, message);
-				});
-
-			auto voiceChannelInfoCollector =
-				[this](DiscordBear::VoiceChannelInfo&& info)
-			{
-				if (info.valid)
-				{
-					m_discordClient->UnsubscribeOnVoiceChannelSpeak();
-					m_discordClient->UnsubscribeOnVoiceChannelEnter();
-					m_discordClient->UnsubscribeOnVoiceChannelExit();
-
-					for (auto& user : info.voiceUserList)
+			DiscordBear::SetLogFn(
+				[](LogSeverity severity, const char* message)
 					{
-						m_voiceUserList.emplace(user.userID, DiscordUser{ user, false });
+						blog(LOG_WARNING, message);
+					});
+
+			auto voiceChannelInfoCollector = [this](DiscordBear::VoiceChannelInfo&& info)
+				{
+					if (info.valid)
+					{
+						m_discordClient->UnsubscribeOnVoiceChannelSpeak();
+						m_discordClient->UnsubscribeOnVoiceChannelEnter();
+						m_discordClient->UnsubscribeOnVoiceChannelExit();
+
+						for (auto& user : info.voiceUserList)
+						{
+							m_voiceUserList.emplace(user.userID, DiscordUser{user, false});
+						}
+
+						m_discordClient->SubscribeOnVoiceChannelSpeak(
+							{info.channelID},
+							[this](DiscordBear::SpeakingEventInfo&& speakingEvent) { this->OnSpeaking(std::move(speakingEvent)); },
+							[this](DiscordBear::SpeakingEventInfo&& speakingEvent) { this->OnSpeakingStop(std::move(speakingEvent)); });
+
+						m_discordClient->SubscribeOnVoiceChannelEnter({info.channelID}, [this](DiscordBear::VoiceUserInfo&& voiceEnterEvent) { this->OnUserEnter(std::move(voiceEnterEvent)); });
+
+						m_discordClient->SubscribeOnVoiceChannelExit({info.channelID}, [this](DiscordBear::VoiceUserInfo&& voiceExitEvent) { this->OnUserExit(std::move(voiceExitEvent)); });
 					}
-
-					m_discordClient->SubscribeOnVoiceChannelSpeak(
-						{ info.channelID },
-						[this](DiscordBear::SpeakingEventInfo&& speakingEvent) { this->OnSpeaking(std::move(speakingEvent)); },
-						[this](DiscordBear::SpeakingEventInfo&& speakingEvent) { this->OnSpeakingStop(std::move(speakingEvent)); });
-
-					m_discordClient->SubscribeOnVoiceChannelEnter(
-						{ info.channelID },
-						[this](DiscordBear::VoiceUserInfo&& voiceEnterEvent) { this->OnUserEnter(std::move(voiceEnterEvent)); });
-
-					m_discordClient->SubscribeOnVoiceChannelExit(
-						{ info.channelID },
-						[this](DiscordBear::VoiceUserInfo&& voiceExitEvent) { this->OnUserExit(std::move(voiceExitEvent)); });
-				}
-			};
+				};
 			blog(LOG_WARNING, "Connecting");
 			m_discordClient->Connect();
 
 
 			m_discordClient->GetSelectedVoiceChannel(voiceChannelInfoCollector);
 
-			m_discordClient->SubscribeOnVoiceChannelJoin([this, voiceChannelInfoCollector](DiscordBear::GenericChannelInfo&& info)
-				{
-					m_discordClient->GetSelectedVoiceChannel(voiceChannelInfoCollector);
-				});
+			m_discordClient->SubscribeOnVoiceChannelJoin(
+				[this, voiceChannelInfoCollector](DiscordBear::GenericChannelInfo&& info)
+					{
+						m_discordClient->GetSelectedVoiceChannel(voiceChannelInfoCollector);
+					});
 		}
 
 		void OnSpeaking(DiscordBear::SpeakingEventInfo&& speakingEvent)
@@ -119,7 +117,7 @@ namespace
 		{
 			if (voiceEnterEvent.valid)
 			{
-				m_voiceUserList.emplace(voiceEnterEvent.userID, DiscordUser{ voiceEnterEvent, false });
+				m_voiceUserList.emplace(voiceEnterEvent.userID, DiscordUser{voiceEnterEvent, false});
 			}
 		}
 
@@ -151,7 +149,7 @@ void CharacterControlOBS::DiscordComponent::UpdateAttributes(const AttributeMap&
 	if (auto* info = DiscordInterface::Get().GetCharacterFromUserID(m_ID))
 	{
 		auto talking = map.find("Talking");
-		
+
 		if (talking != map.end())
 		{
 			talking->second->SetValue(info->speaking);
@@ -177,9 +175,5 @@ void CharacterControlOBS::DiscordComponent::UpdateAttributes(const AttributeMap&
 
 bool CharacterControlOBS::IDIsActiveInDiscord(const std::string& ID)
 {
-	if (auto* info = DiscordInterface::Get().GetCharacterFromUserID(ID))
-	{
-		return true;
-	}
-	return false;
+	return DiscordInterface::Get().GetCharacterFromUserID(ID) != nullptr;
 }

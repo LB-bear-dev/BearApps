@@ -26,32 +26,32 @@
 std::unordered_map<PATH, std::weak_ptr<CharacterControlRender::WatchedFileImageLibrary>> CharacterControlRender::CharacterImageLibrary::s_imageLibraries;
 namespace
 {
-	void UnloadImage( gs_image_file4* image )
+	void UnloadImage(gs_image_file4* image)
 	{
-		if ( image != nullptr )
+		if (image != nullptr)
 		{
 			obs_enter_graphics();
-			gs_image_file4_free( image );
+			gs_image_file4_free(image);
 			obs_leave_graphics();
 		}
 	}
 
-	bool LoadImage( const char* fileName, gs_image_file4* image )
+	bool LoadImage(const char* fileName, gs_image_file4* image)
 	{
-		UnloadImage( image );
+		UnloadImage(image);
 
-		if ( fileName != nullptr && strlen(fileName) >= 0 )
+		if (fileName != nullptr && strlen(fileName) > 0)
 		{
-			debug_( "loading texture '%s'", fileName );
-			gs_image_file4_init( image, fileName, GS_IMAGE_ALPHA_PREMULTIPLY );
+			debug_("loading texture '%s'", fileName);
+			gs_image_file4_init(image, fileName, GS_IMAGE_ALPHA_PREMULTIPLY);
 
 			obs_enter_graphics();
-			gs_image_file4_init_texture( image );
+			gs_image_file4_init_texture(image);
 			obs_leave_graphics();
 
-			if ( !image->image3.image2.image.loaded )
+			if (!image->image3.image2.image.loaded)
 			{
-				warn_( "failed to load texture '%s'", fileName );
+				warn_("failed to load texture '%s'", fileName);
 				return false;
 			}
 		}
@@ -70,9 +70,11 @@ namespace
 		{
 			char name[255];
 			size_t unused;
-			wcstombs_s(&unused, name, (wchar_t*)layer.utf16Name, 255);
-			name[254] = '\0';
-			layerName = name;
+			if (wcstombs_s(&unused, name, (wchar_t*)layer.utf16Name, 255) == 0)
+			{
+				name[254] = '\0';
+				layerName = name;
+			}
 		}
 		else
 		{
@@ -88,7 +90,11 @@ namespace
 	{
 		wchar_t wideFilename[MAX_PATH];
 		size_t unused;
-		mbstowcs_s(&unused, wideFilename, fileName, MAX_PATH);
+		if (mbstowcs_s(&unused, wideFilename, fileName, MAX_PATH) != 0)
+		{
+			error_("Cannot convert file name %s.", fileName);
+			return false;
+		}
 
 		psd::MallocAllocator allocator;
 		psd::NativeFile file(&allocator);
@@ -113,7 +119,7 @@ namespace
 			file.Close();
 			return 1;
 		}
-		
+
 		if (psd::LayerMaskSection* layerMaskSection = psd::ParseLayerMaskSection(document, &file, &allocator))
 		{
 			for (unsigned int layerIndex = 0; layerIndex < layerMaskSection->layerCount; ++layerIndex)
@@ -133,8 +139,7 @@ namespace
 				layerImage.cx = document->width;
 				layerImage.cy = document->height;
 
-				uint8_t* canvasData[4] = { nullptr };
-				int realChannelCount = 4;
+				uint8_t* canvasData[4] = {nullptr};
 
 				for (unsigned int channelIndex = 0; channelIndex < layer.channelCount; ++channelIndex)
 				{
@@ -147,10 +152,9 @@ namespace
 						memset(canvasData[channelType], 0u, sizeof(uint8_t) * document->width * document->height);
 
 						psd::imageUtil::CopyLayerData(static_cast<const uint8_t*>(channel.data), canvasData[channelType], layer.left, layer.top, layer.right, layer.bottom, document->width, document->height);
-						//++realChannelCount;
 					}
 				}
-				layerImage4.get()->image3.image2.mem_usage = document->width * document->height * layer.channelCount * sizeof(uint8_t);
+				layerImage4.get()->image3.image2.mem_usage = static_cast<size_t>(document->width) * document->height * layer.channelCount * sizeof(uint8_t);
 
 				layerImage.texture_data = (uint8_t*)bmalloc(layerImage4.get()->image3.image2.mem_usage);
 
@@ -190,7 +194,7 @@ CharacterControlRender::Coord CharacterControlRender::WatchedFileImageLibrary::G
 
 bool CharacterControlRender::WatchedFileImageLibrary::UpdateInternal()
 {
-	bool success = false;
+	bool success;
 	if (GetPath().extension() == ".psd")
 	{
 		success = LoadPsd(GetPath().string().c_str(), *GetMutable());
@@ -227,7 +231,7 @@ void CharacterControlRender::WatchedFileImageLibrary::DisposeInternal()
 {
 	if (GetMutable() != nullptr && !GetMutable()->empty())
 	{
-		for (auto& [filename, image]: *GetMutable())
+		for (auto& [filename, image] : *GetMutable())
 		{
 			UnloadImage(image.get());
 		}
@@ -323,7 +327,7 @@ gs_image_file4* CharacterControlRender::CharacterImageLibrary::GetImageFromName(
 
 CharacterControlRender::Coord CharacterControlRender::CharacterImageLibrary::GetMaxResolution() const
 {
-	Coord size(0,0);
+	Coord size{0, 0};
 	for (auto& libraryPtr : m_imageLibraries)
 	{
 		if (const WatchedFileImageLibrary* library = libraryPtr.get())
@@ -333,6 +337,6 @@ CharacterControlRender::Coord CharacterControlRender::CharacterImageLibrary::Get
 			size.Y = std::max(size.Y, maxRes.Y);
 		}
 	}
-	
+
 	return size;
 }

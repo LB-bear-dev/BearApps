@@ -56,7 +56,7 @@ void CharacterControlOBS::Character::UpdateRenderState()
 			}
 		}
 		PyTuple_SetItem(pArgs, 0, pDict);
-	}	
+	}
 }
 
 const Attribute<int>* CharacterControlOBS::Character::GetIntAttribute(STRIDR attrName) const

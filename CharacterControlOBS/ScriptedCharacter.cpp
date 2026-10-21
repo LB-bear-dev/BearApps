@@ -82,7 +82,7 @@ namespace
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
 
-		return characterInfo->size.X;
+		return static_cast<uint32_t>(characterInfo->size.X);
 	}
 
 	uint32_t GetHeight(void* data)
@@ -94,7 +94,7 @@ namespace
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
 
-		return characterInfo->size.Y;
+		return static_cast<uint32_t>(characterInfo->size.Y);
 	}
 
 	void GetDefaults(obs_data_t* settings)
@@ -176,7 +176,7 @@ namespace
 		{
 			return;
 		}
-		 
+
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
 		if (!characterInfo->active)
 		{
@@ -187,7 +187,7 @@ namespace
 		{
 			character->UpdateAttributes();
 			character->UpdateRenderState();
-			
+
 			if (const Attribute<int>* attr = character->GetIntAttribute("Talking"))
 			{
 				character->GetImageRoot().SetSlot("SpeakingState", attr->GetValue() == 0 ? "SILENT" : "TALK");
@@ -219,7 +219,7 @@ namespace
 		}
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
-		
+
 		if (!characterInfo->active)
 		{
 			return;
