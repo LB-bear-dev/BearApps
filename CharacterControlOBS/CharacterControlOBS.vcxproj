@@ -58,10 +58,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;QT_NO_DEBUG_STREAM;QT_NO_VERSION_TAGGING;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\..\obs-build-dependencies\plugin-deps-2022-08-02-qt6-x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OBSPATH)\..\libobs;..\;$(PSDDIR)\src;$(QTPATH)\include;$(PYTHONPATH)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PCH.h</PrecompiledHeaderFile>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
@@ -69,8 +70,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\..\obs-build-dependencies\plugin-deps-2022-08-02-qt6-x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>DiscordBear.lib;CharacterControlCore.lib;plugin-deps-2022-08-02-qt6-x64\bin\64bit\obs.lib;plugin-deps-2022-08-02-qt6-x64\bin\64bit\w32-pthreads.lib;Qt6Gui.lib;Qt6Core.lib;Qt6Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OBSPATH)\libobs\RelWithDebInfo;$(PSDDIR)\build\VS2019\x64\Debug DLL;$(OBSPATH)\deps\w32-pthreads\RelWithDebInfo;$(OutDir);$(QTPATH)\lib;$(PYTHONPATH)\libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Psd_MDd.lib;DiscordBear.lib;obs.lib;w32-pthreads.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
