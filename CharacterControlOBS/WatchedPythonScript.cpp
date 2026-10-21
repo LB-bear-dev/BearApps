@@ -33,7 +33,7 @@ bool CharacterControlScript::WatchedPythonScript::UpdateInternal()
 	std::string rootPath = CharacterControlOBS::GetGlobalSettingsPath().value_or("").make_preferred().string();
 	std::filesystem::path path = GetPath();
 	path = path.make_preferred();
-	size_t rootPathIndex = path.string().find(rootPath) + rootPath.length()+1;
+	size_t rootPathIndex = path.string().find(rootPath) + rootPath.length() + 1;
 	std::string filenameWithoutExtension = path.string().substr(rootPathIndex, path.string().find_first_of('.') - rootPathIndex);
 	PyObject* pName = PyUnicode_FromString(filenameWithoutExtension.c_str());
 	PyObject* pyFile = PyImport_GetModule(pName);

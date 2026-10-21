@@ -30,8 +30,7 @@ extern obs_source_info scriptedDiscordCharacterSourceInfo;
 
 bool obs_module_load(void)
 {
-	blog(LOG_INFO, "plugin loaded successfully (version %s)",
-	     PLUGIN_VERSION);
+	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 
 	//obs_register_source(&namedCharacterSourceInfo);
 	obs_register_source(&simpleDiscordCharacterSourceInfo);

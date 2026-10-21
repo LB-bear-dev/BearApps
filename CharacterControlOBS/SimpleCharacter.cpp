@@ -94,7 +94,7 @@ namespace
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
 
-		return characterInfo->size.X;
+		return static_cast<uint32_t>(characterInfo->size.X);
 	}
 
 	uint32_t GetHeight(void* data)
@@ -106,7 +106,7 @@ namespace
 
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
 
-		return characterInfo->size.Y;
+		return static_cast<uint32_t>(characterInfo->size.Y);
 	}
 
 	void GetDefaults(obs_data_t* settings)
@@ -194,7 +194,7 @@ namespace
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
 		if (!characterInfo->active || !CharacterControlOBS::IDIsActiveInDiscord(characterInfo->ID))
 		{
-			if (Character* character = ActiveCharacters::Get().GetActiveCharacter(characterInfo->name))
+			if (ActiveCharacters::Get().GetActiveCharacter(characterInfo->name))
 			{
 				ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
 			}
