@@ -1,11 +1,8 @@
 #include "PCH.h"
-#include "ActiveCharacters.h"
-#include "Coord.h"
-#include "Character.h"
-#include "Messaging.h"
 #include <obs-module.h>
-#include "WatchedImage.h"
-#include <QtWidgets\QMenu.h>
+#include "ActiveCharacters.h"
+#include "Character.h"
+#include "Coord.h"
 #include "DiscordComponent.h"
 #include "WatchedImage.h"
 #include "../DiscordBear/Interface.h"
@@ -80,7 +77,7 @@ namespace
 			return;
 		}
 
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
 		delete characterInfo;
 	}
@@ -92,7 +89,7 @@ namespace
 			return 100;
 		}
 
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 
 		return static_cast<uint32_t>(characterInfo->size.X);
 	}
@@ -104,7 +101,7 @@ namespace
 			return 100;
 		}
 
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 
 		return static_cast<uint32_t>(characterInfo->size.Y);
 	}
@@ -143,7 +140,7 @@ namespace
 			return;
 		}
 
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
 
 		characterInfo->name = obs_data_get_string(settings, "Name");
@@ -154,26 +151,26 @@ namespace
 
 	void Activate(void* data)
 	{
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		characterInfo->active = true;
 	}
 
 	void Deactivate(void* data)
 	{
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
 		characterInfo->active = false;
 	}
 
 	void Show(void* data)
 	{
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		characterInfo->active = true;
 	}
 
 	void Hide(void* data)
 	{
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		ActiveCharacters::Get().RemoveActiveCharacter(characterInfo->name);
 		characterInfo->active = false;
 	}
@@ -187,7 +184,7 @@ namespace
 			return;
 		}
 
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 		if (!characterInfo->active || !CharacterControlOBS::IDIsActiveInDiscord(characterInfo->ID))
 		{
 			if (ActiveCharacters::Get().GetActiveCharacter(characterInfo->name))
@@ -232,7 +229,7 @@ namespace
 			return;
 		}
 
-		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
+		NamedCharacterDisplayInfo* characterInfo = static_cast<NamedCharacterDisplayInfo*>(data);
 
 		if (!characterInfo->active)
 		{

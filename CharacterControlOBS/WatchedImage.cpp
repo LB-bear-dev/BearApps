@@ -2,16 +2,22 @@
 #include "WatchedImage.h"
 #include <obs-module.h>
 #include "Messaging.h"
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <Windows.h>
 #include "Psd/Psd.h"
 #include "Psd/PsdPlatform.h"
 #include "Psd/PsdMallocAllocator.h"
 #include "Psd/PsdNativeFile.h"
 #include "Psd/PsdDocument.h"
+#include "Psd/PsdColorMode.h"
 #include "Psd/PsdParseDocument.h"
 #include "Psd/PsdParseLayerMaskSection.h"
 #include "Psd/PsdParseImageDataSection.h"
 #include "Psd/PsdParseImageResourcesSection.h"
 #include "Psd/PsdLayer.h"
+#include "Psd/PsdLayerType.h"
 #include "Psd/PsdChannel.h"
 #include "Psd/PsdChannelType.h"
 #include "Psd/PsdLayerMask.h"
@@ -68,12 +74,12 @@ namespace
 		std::string layerName;
 		if (layer.utf16Name)
 		{
-			char name[255];
-			size_t unused;
-			if (wcstombs_s(&unused, name, (wchar_t*)layer.utf16Name, 255) == 0)
+			const wchar_t* wideName = reinterpret_cast<const wchar_t*>(layer.utf16Name);
+			int size = WideCharToMultiByte(CP_UTF8, 0, wideName, -1, nullptr, 0, nullptr, nullptr);
+			if (size > 1)
 			{
-				name[254] = '\0';
-				layerName = name;
+				layerName.resize(size - 1);
+				WideCharToMultiByte(CP_UTF8, 0, wideName, -1, layerName.data(), size, nullptr, nullptr);
 			}
 		}
 		else
@@ -111,13 +117,15 @@ namespace
 		{
 			OutputDebugStringA("Cannot create document.\n");
 			file.Close();
-			return 1;
+			return false;
 		}
 
-		if (document->bitsPerChannel != 8)
+		if (document->bitsPerChannel != 8 || document->colorMode != psd::colorMode::RGB)
 		{
+			error_("%s: only 8-bit RGB PSDs are supported.", fileName);
+			DestroyDocument(document, &allocator);
 			file.Close();
-			return 1;
+			return false;
 		}
 
 		if (psd::LayerMaskSection* layerMaskSection = psd::ParseLayerMaskSection(document, &file, &allocator))
@@ -125,13 +133,20 @@ namespace
 			for (unsigned int layerIndex = 0; layerIndex < layerMaskSection->layerCount; ++layerIndex)
 			{
 				psd::Layer& layer = layerMaskSection->layers[layerIndex];
+
+				// Other layer types are like folders or dividers, non image things.
+				if (layer.type != psd::layerType::ANY)
+				{
+					continue;
+				}
+
 				ExtractLayer(document, &file, &allocator, &layer);
 
 				auto layerImage4 = std::make_unique<gs_image_file4>();
-				layerImage4.get()->space = gs_color_space::GS_CS_SRGB;
-				layerImage4.get()->image3.alpha_mode = gs_image_alpha_mode::GS_IMAGE_ALPHA_PREMULTIPLY;
+				layerImage4->space = gs_color_space::GS_CS_SRGB;
+				layerImage4->image3.alpha_mode = gs_image_alpha_mode::GS_IMAGE_ALPHA_PREMULTIPLY;
 
-				gs_image_file& layerImage = layerImage4.get()->image3.image2.image;
+				gs_image_file& layerImage = layerImage4->image3.image2.image;
 				layerImage.loaded = false;
 				layerImage.is_animated_gif = false;
 				layerImage.format = gs_color_format::GS_RGBA;
@@ -154,9 +169,20 @@ namespace
 						psd::imageUtil::CopyLayerData(static_cast<const uint8_t*>(channel.data), canvasData[channelType], layer.left, layer.top, layer.right, layer.bottom, document->width, document->height);
 					}
 				}
-				layerImage4.get()->image3.image2.mem_usage = static_cast<size_t>(document->width) * document->height * layer.channelCount * sizeof(uint8_t);
 
-				layerImage.texture_data = (uint8_t*)bmalloc(layerImage4.get()->image3.image2.mem_usage);
+				// The texture is always RGBA, whatever channels the layer had. Fill with black for RGB and opaque for A.
+				for (int channelType = 0; channelType < 4; ++channelType)
+				{
+					if (canvasData[channelType] == nullptr)
+					{
+						canvasData[channelType] = static_cast<uint8_t*>(allocator.Allocate(sizeof(uint8_t) * document->width * document->height, 16u));
+						memset(canvasData[channelType], channelType == 3 ? 255u : 0u, sizeof(uint8_t) * document->width * document->height);
+					}
+				}
+
+				layerImage4->image3.image2.mem_usage = static_cast<size_t>(document->width) * document->height * 4 * sizeof(uint8_t);
+
+				layerImage.texture_data = static_cast<uint8_t*>(bmalloc(layerImage4->image3.image2.mem_usage));
 
 				psd::imageUtil::InterleaveRGBA(canvasData[0], canvasData[1], canvasData[2], canvasData[3], layerImage.texture_data, document->width, document->height);
 
@@ -174,6 +200,13 @@ namespace
 			}
 
 			DestroyLayerMaskSection(layerMaskSection, &allocator);
+		}
+		else
+		{
+			error_("Cannot read the layers of %s.", fileName);
+			DestroyDocument(document, &allocator);
+			file.Close();
+			return false;
 		}
 
 		DestroyDocument(document, &allocator);
@@ -217,8 +250,8 @@ bool CharacterControlRender::WatchedFileImageLibrary::UpdateInternal()
 				if (image.second != nullptr)
 				{
 					m_imageNames.push_back(image.first);
-					m_maxResolution.X = std::max(m_maxResolution.X, (float)image.second->image3.image2.image.cx);
-					m_maxResolution.Y = std::max(m_maxResolution.Y, (float)image.second->image3.image2.image.cy);
+					m_maxResolution.X = std::max(m_maxResolution.X, static_cast<float>(image.second->image3.image2.image.cx));
+					m_maxResolution.Y = std::max(m_maxResolution.Y, static_cast<float>(image.second->image3.image2.image.cy));
 				}
 			}
 		}
