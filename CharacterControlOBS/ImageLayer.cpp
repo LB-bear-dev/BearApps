@@ -32,8 +32,6 @@ void CharacterControlRender::ImageLayer::AddImageLibraryToLayer(PATHR path, STRI
 	m_imageLibraries.AddImageLibrary(path, overrideName);
 }
 
-// Only this layer's flag changes. Render skips the children of an inactive layer, so hiding a
-// layer hides everything under it, and the children keep their own visibility for when it is shown again.
 void CharacterControlRender::ImageLayer::Activate()
 {
 	m_active = true;

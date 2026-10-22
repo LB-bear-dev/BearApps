@@ -150,14 +150,11 @@ namespace
 		characterInfo->ID = obs_data_get_string(settings, "ID");
 		characterInfo->NotSpeakingImg = obs_data_get_string(settings, "NotSpeakingImg");
 		characterInfo->SpeakingImg = obs_data_get_string(settings, "SpeakingImg");
-
-		SetupCharacter(characterInfo);
 	}
 
 	void Activate(void* data)
 	{
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
-		SetupCharacter(characterInfo);
 		characterInfo->active = true;
 	}
 
@@ -171,7 +168,6 @@ namespace
 	void Show(void* data)
 	{
 		NamedCharacterDisplayInfo* characterInfo = (NamedCharacterDisplayInfo*)data;
-		SetupCharacter(characterInfo);
 		characterInfo->active = true;
 	}
 
@@ -224,6 +220,7 @@ namespace
 		}
 		else
 		{
+			// If anything causes the character to not exist, set it up this frame.
 			SetupCharacter(characterInfo);
 		}
 	}
