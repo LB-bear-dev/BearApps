@@ -32,24 +32,16 @@ void CharacterControlRender::ImageLayer::AddImageLibraryToLayer(PATHR path, STRI
 	m_imageLibraries.AddImageLibrary(path, overrideName);
 }
 
+// Only this layer's flag changes. Render skips the children of an inactive layer, so hiding a
+// layer hides everything under it, and the children keep their own visibility for when it is shown again.
 void CharacterControlRender::ImageLayer::Activate()
 {
 	m_active = true;
-
-	for (ImageLayer& layer : m_childLayersByZOrder)
-	{
-		layer.Activate();
-	}
 }
 
 void CharacterControlRender::ImageLayer::Deactivate()
 {
 	m_active = false;
-
-	for (ImageLayer& layer : m_childLayersByZOrder)
-	{
-		layer.Deactivate();
-	}
 }
 
 void CharacterControlRender::ImageLayer::Render(gs_effect_t* effect) const
