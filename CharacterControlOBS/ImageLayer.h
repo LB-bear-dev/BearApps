@@ -38,6 +38,7 @@ namespace CharacterControlRender
 
 	private:
 		const ImageLayer* GetNextActiveChildLayer(uint32_t& startIndex) const;
+		void RefreshActiveImageFromSlots();
 		const gs_image_file4* GetImage() const;
 
 		STRID m_layerName;

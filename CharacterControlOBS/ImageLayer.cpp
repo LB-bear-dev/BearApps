@@ -126,40 +126,48 @@ Coord CharacterControlRender::ImageLayer::GetMaxResolution() const
 
 void CharacterControlRender::ImageLayer::SetSlot(STRIDR slot, STRIDR name)
 {
+	bool changed = false;
 	for (auto& slotName : m_slotNames)
 	{
-		if (slotName.slot == slot)
+		if (slotName.slot == slot && slotName.name != name)
 		{
 			slotName.name = name;
+			changed = true;
 		}
 	}
 
-	auto imageNames = m_imageLibraries.GetValidImageNames();
-	m_activeImageName.clear();
-
-	for (auto& slotName : m_slotNames)
+	// Layers without this slot keep the image they already have
+	if (changed)
 	{
-		for (auto index = imageNames.begin(); index != imageNames.end();)
-		{
-			if (index->find(slotName.name))
-			{
-				imageNames.erase(index);
-			}
-			else
-			{
-				++index;
-			}
-		}
-
-		if (!imageNames.empty())
-		{
-			m_activeImageName = imageNames[0];
-		}
+		RefreshActiveImageFromSlots();
 	}
 
 	for (ImageLayer& layer : m_childLayersByZOrder)
 	{
 		layer.SetSlot(slot, name);
+	}
+}
+
+// Picks the first image whose name contains every slot's current value
+void CharacterControlRender::ImageLayer::RefreshActiveImageFromSlots()
+{
+	m_activeImageName.clear();
+
+	for (const std::string& imageName : m_imageLibraries.GetValidImageNames())
+	{
+		bool matchesAllSlots = std::all_of(
+			m_slotNames.begin(),
+			m_slotNames.end(),
+			[&imageName](const SlotName& slotName)
+				{
+					return imageName.find(slotName.name) != std::string::npos;
+				});
+
+		if (matchesAllSlots)
+		{
+			m_activeImageName = imageName;
+			return;
+		}
 	}
 }
 
