@@ -218,7 +218,7 @@ bool CharacterControlRender::WatchedFileImageLibrary::UpdateInternal()
 				{
 					m_imageNames.push_back(image.first);
 					m_maxResolution.X = std::max(m_maxResolution.X, (float)image.second->image3.image2.image.cx);
-					m_maxResolution.Y = std::max(m_maxResolution.Y, (float)image.second->image3.image2.image.cx);
+					m_maxResolution.Y = std::max(m_maxResolution.Y, (float)image.second->image3.image2.image.cy);
 				}
 			}
 		}

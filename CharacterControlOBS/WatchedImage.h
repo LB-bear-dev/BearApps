@@ -19,6 +19,12 @@ namespace CharacterControlRender
 			Update();
 		}
 
+		// WatchedFile's destructor can't reach our DisposeInternal override, so free the textures here.
+		~WatchedFileImageLibrary()
+		{
+			DisposeInternal();
+		}
+
 		const std::vector<STRID>& GetImageNames() const;
 
 		Coord GetMaxResolution() const;
